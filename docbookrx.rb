@@ -308,6 +308,30 @@ class DocBookVisitor
     false
   end
 
+  # Very rough first pass at processing xi:include
+  def visit_include node
+    # QUESTION should we reuse this instance to traverse the new tree?
+    include_infile = node.attr 'href'
+    include_outfile = include_infile.sub '.xml', '.ad'
+    if File.readable? include_infile
+      doc = Nokogiri::XML::Document.parse(File.read include_infile)
+      # TODO pass in options that were passed to this visitor
+      visitor = self.class.new
+      doc.root.accept visitor
+      result = visitor.lines
+      result.shift while result.size > 0 && result.first.empty?
+      File.open(include_outfile, 'w') {|f| f.write(visitor.lines * "\n") }
+    else
+      warn %(Include file not readable: #{href})
+    end
+    append_blank_line
+    # TODO make leveloffset more context-aware
+    append_line %(:leveloffset: #{@level - 1}) if @level > 1
+    append_line %(include::#{include_outfile}[])
+    append_line %(:leveloffset: 0) if @level > 1
+    false
+  end
+
   ### Section node (part | chapter | section | <special>) visitors
 
   def visit_chapter node

@@ -1,7 +1,6 @@
 = TODO
 
 - make level shifting configurable or auto-detectable?
-- option for removing hard-wrap (and perhaps one for sentence-per-line)
 - fix extra line above variable list
 - variablelist children
 - table width
@@ -17,5 +16,4 @@
 - make literal paragraph indent size an option
 - try to use + for literal when possible
 - nested lists
-- extract urls as attributes
 - cleaner solution for skipping title node
