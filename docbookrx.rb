@@ -127,7 +127,7 @@ class DocBookVisitor
     text(node.at_css css, unsub)
   end
 
-  def formatted_text node
+  def format_text node
     if node && !(node.is_a? Nokogiri::XML::Node)
       node = node.first
     end
@@ -141,8 +141,8 @@ class DocBookVisitor
     end
   end
 
-  def formatted_text_at_css node, css
-    formatted_text(node.at_css css)
+  def format_text_at_css node, css
+    format_text(node.at_css css)
   end
 
   def entity number
@@ -191,7 +191,7 @@ class DocBookVisitor
   alias :start_new_line :append_blank_line
 
   def append_block_title node
-    if (title = (formatted_text_at_css node, '> title'))
+    if (title = (format_text_at_css node, '> title'))
       append_line %(.#{title})
       @adjoin_next = true
     end
@@ -221,7 +221,7 @@ class DocBookVisitor
   ## Node visitor callbacks
 
   def default_visit node
-    warn %(No visitor defined for <#{node.name}>!)
+    warn %(No visitor defined for <#{node.name}> element! Skipping.)
     false
   end
 
@@ -306,8 +306,12 @@ class DocBookVisitor
     level = node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
     append_line '[float]'
-    # QUESTION should this be formatted_text?
-    append_line %(#{'=' * level} #{text node})
+    title = format_text node
+    auto_id = generate_id title
+    if (id = node.attr('id')) && id != auto_id
+      append_line %([[#{id}]])
+    end
+    append_line %(#{'=' * level} #{title})
     false
   end
 
@@ -318,11 +322,12 @@ class DocBookVisitor
       append_blank_line
       append_line %([#{special}])
     end
-    # QUESTION should this be formatted_text_at_css?
-    title = text_at_css node, '> title'
+    title = format_text_at_css node, '> title'
     auto_id = generate_id title
-    if (id = node.attr('id')) && id != auto_id
-      append_line %([[#{id}]])
+    if (id = node.attr('id'))
+      if id != (generate_id title)
+        append_line %([[#{id}]])
+      end
     end
     append_line %(#{'=' * @level} #{title})
     traverse_child_elements node, true
@@ -370,7 +375,7 @@ class DocBookVisitor
     append_blank_line
     append_block_title node
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
-      append_line %(#{node.name.upcase}: #{formatted_text child})
+      append_line %(#{node.name.upcase}: #{format_text child})
     else
       append_line %([#{node.name.upcase}])
       append_line '===='
@@ -405,7 +410,7 @@ class DocBookVisitor
 
   def visit_listitem node
     elements = node.elements.to_a
-    item_text = formatted_text elements.shift
+    item_text = format_text elements.shift
     marker = (node.parent.name == 'orderedlist' ? '.' : '*')
     item_text.split("\n").each_with_index do |line, i|
       if i == 0
@@ -430,8 +435,8 @@ class DocBookVisitor
 
   def visit_varlistentry node
     append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
-    append_line %(#{formatted_text(node.at_css node, '> term')}::)
-    item_text = formatted_text(node.at_css node, '> listitem > para', '> listitem > simpara')
+    append_line %(#{format_text(node.at_css node, '> term')}::)
+    item_text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
     if item_text
       item_text.split("\n").each do |line|
         append_line %(  #{line})
@@ -450,7 +455,7 @@ class DocBookVisitor
   end
 
   def visit_glossterm node
-    append_line %(#{formatted_text node}::)
+    append_line %(#{format_text node}::)
     false
   end
 
@@ -529,7 +534,7 @@ class DocBookVisitor
     end
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[example]'
-      append_line formatted_text child
+      append_line format_text child
     else
       append_line '===='
       @continuation = true
@@ -550,7 +555,7 @@ class DocBookVisitor
     end
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[sidebar]'
-      append_line formatted_text child
+      append_line format_text child
     else
       append_line '****'
       @continuation = true
@@ -570,7 +575,7 @@ class DocBookVisitor
     end
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[quote]'
-      append_line formatted_text child
+      append_line format_text child
     else
       append_line '____'
       @continuation = true
@@ -671,7 +676,7 @@ class DocBookVisitor
 
   def visit_link node
     linkend = node.attr('linkend')
-    label = formatted_text node
+    label = format_text node
     if label.include? ','
       label = %("#{label}")
     end
@@ -701,13 +706,13 @@ class DocBookVisitor
   end
 
   def visit_phrase node
-    append_text %([#{node.attr 'role'}]#{formatted_text node})
+    append_text %([#{node.attr 'role'}]#{format_text node})
     false
   end
 
   def visit_emphasis node
     quote_char = node.attr('role') == 'strong' ? '*' : @emphasis_quote_char
-    append_text %(#{quote_char}#{formatted_text node}#{quote_char})
+    append_text %(#{quote_char}#{format_text node}#{quote_char})
     false
   end
 
