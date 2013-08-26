@@ -856,49 +856,13 @@ class DocBookVisitor
     case node.name
     when 'asciidoc-br'
       append_text ' +'
+    when 'asciidoc-hr'
+      # <?asciidoc-hr?> will be wrapped in a para/simpara
+      append_text '\'' * 3
     end
     false
   end
 
-=begin
-  # special sections are automatically delegated to process_section
-  def visit_abstract node
-    process_section node, 'abstract'
-  end
-
-  def visit_appendix node
-    process_section node, 'appendix'
-  end
-
-  def visit_glossary node
-    process_section node, 'glossary'
-  end
-
-  def visit_bibliography node
-    process_section node, 'bibliography'
-  end
-
-  # admonitions are automatically delegated to process_admonition
-  def visit_note node
-    process_admonition node
-  end
-
-  def visit_tip node
-    process_admonition node
-  end
-
-  def visit_warning node
-    process_admonition node
-  end
-
-  def visit_important node
-    process_admonition node
-  end
-
-  def visit_caution node
-    process_admonition node
-  end
-=end
 end
 
 doc = Nokogiri::XML::Document.parse(docbook)
