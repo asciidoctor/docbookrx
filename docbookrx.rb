@@ -33,15 +33,54 @@ class DocBookVisitor
     ':: ' => '{two-colons} '
   }
 
+  PARA_TAG_NAMES = ['para', 'simpara']
+
+  #COMPLEX_PARA_TAG_NAMES = ['formalpara', 'para']
+
+  ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
+
   attr_reader :lines
 
-  def initialize
+  def initialize opts = {}
     @lines = []
     @level = 1
     @skip = {}
     @requires_index = false
     @list_index = 0
     @continuation = false
+    @adjoin_next = false
+    @idprefix = opts[:idprefix] || '_'
+    @idseparator = opts[:idseparator] || '_'
+    @emphasis_quote_char = opts[:emphasis_quote_char] || '_'
+  end
+
+  ## Traversal methods
+
+  # Main processor loop
+  def visit node
+    if (at_root = (node == node.document.root))
+      before_traverse if respond_to? :before_traverse
+    end
+    name = node.name
+    if node.type == Nokogiri::XML::Node::PI_NODE
+      visit_method_name = :visit_pi
+    elsif ADMONITION_NAMES.include?(name)
+      visit_method_name = :process_admonition
+    else
+      visit_method_name = "visit_#{name}".to_sym
+    end
+    if respond_to? visit_method_name
+      result = send(visit_method_name, node)
+    elsif respond_to? :default_visit
+      result = send(:default_visit, node)
+    end
+    if result == true
+      traverse_children node, false
+    end
+
+    if at_root
+      after_traverse if respond_to? :after_traverse
+    end
   end
 
   def traverse_children node, increment_level
@@ -60,13 +99,15 @@ class DocBookVisitor
     if increment_level
       @level += 1
     end
-    node.elements.each do |child|
+    node.elements.each_with_index do |child, i|
       child.accept self
     end
     if increment_level
       @level -= 1
     end
   end
+
+  ## Text extraction and processing methods
 
   def text node, unsub = true
     if node
@@ -80,6 +121,10 @@ class DocBookVisitor
     else
       nil
     end
+  end
+
+  def text_at_css node, css, unsub = true
+    text(node.at_css css, unsub)
   end
 
   def formatted_text node
@@ -96,14 +141,27 @@ class DocBookVisitor
     end
   end
 
-  def text_at_css node, css, unsub = true
-    text(node.at_css css, unsub)
+  def formatted_text_at_css node, css
+    formatted_text(node.at_css css)
   end
 
   def entity number
     [number].pack('U*')
   end
 
+  # Replaces XML entities, and other encoded forms that AsciiDoc automatically
+  # applies, with their plain-text equivalents.
+  #
+  # This method effectively undoes the inline substitutions that AsciiDoc performs.
+  #
+  # str - The String to processes
+  #
+  # Examples
+  #
+  #   reverse_subs "&#169; Acme, Inc."
+  #   # => "(C) Acme, Inc."
+  #
+  # Returns The processed String
   def reverse_subs str
     ENTITY_TABLE.each do |num, text|
       str = str.gsub(entity(num), text)
@@ -114,55 +172,40 @@ class DocBookVisitor
     str
   end
 
-  def append_blank_line
-    if @continuation
-      @continuation = false
-    else
-      @lines << ''
-    end
-  end
+  ## Writer methods
 
   def append_line line, unsub = false
     line = reverse_subs line if unsub
     @lines << line
   end
 
+  def append_blank_line
+    if @continuation
+      @continuation = false
+    elsif @adjoin_next
+      @adjoin_next = false
+    else
+      @lines << ''
+    end
+  end
+  alias :start_new_line :append_blank_line
+
+  def append_block_title node
+    if (title = (formatted_text_at_css node, '> title'))
+      append_line %(.#{title})
+      @adjoin_next = true
+    end
+  end
+
   def append_text text, unsub = false
     text = reverse_subs text if unsub
     @lines[-1] = %(#{@lines[-1]}#{text})
-    #last_line = @lines[-1]
-    #if last_line.empty? || text == '.'
-    #  @lines[-1] = %(#{last_line}#{text})
-    #else
-    #  @lines[-1] = %(#{last_line} #{text})
-    #end
   end
 
-  def append_title node
-    if (title_node = node.at_css('> title'))
-      append_line %(.#{text title_node})
-    end
-  end
+  ## Lifecycle callbacks
 
-  def visit node
-    if (at_root = (node == node.document.root))
-      before_traverse if respond_to? :before_traverse
-    end
-    name = node.name
-    visit_method_name = (node.type == 7 ? :visit_pi : "visit_#{name}".to_sym)
-    if respond_to? visit_method_name
-      result = send(visit_method_name, node)
-    elsif respond_to? :default_visit
-      result = send(:default_visit, node)
-    end
-    if result
-      traverse_children node, false
-    end
-
-    if at_root
-      after_traverse if respond_to? :after_traverse
-    end
-  end
+  #def before_traverse
+  #end
 
   def after_traverse
     if @requires_index
@@ -175,6 +218,29 @@ class DocBookVisitor
     end
   end
 
+  ## Node visitor callbacks
+
+  def default_visit node
+    warn %(No visitor defined for <#{node.name}>!)
+    false
+  end
+
+  # Skip title as it's always handled by the parent visitor
+  def visit_title node
+    false
+  end
+
+  ### Document node (article | book) & header node (articleinfo | bookinfo | info) visitors
+
+  def visit_book node
+    traverse_children node, true
+    false
+  end
+
+  def visit_bookinfo node
+    process_info node
+  end
+
   def visit_article node
     traverse_children node, true
     false
@@ -184,83 +250,111 @@ class DocBookVisitor
     process_info node
   end
 
-  # TODO delegate to process_section w/ special=true
-  def visit_abstract node
-    append_blank_line
-    append_line ':numbered!:'
-    append_blank_line
-    append_line '[abstract]'
-    append_line %(#{'=' * @level} #{text_at_css node, '> title'})
-    traverse_child_elements node, true
-    append_blank_line
-    append_line ':numbered:'
-    false
-  end
-
-  # TODO delegate to process_section w/ special=true
-  def visit_appendix node
-    append_blank_line
-    append_line ':numbered!:'
-    id = node.attr('id')
-    # FIXME this needs to be more robust...should check if generated id does not match id
-    if id && !id.start_with?('_')
-      append_line %([[#{id}]])
+  def process_info node
+    title = text_at_css node, '> title'
+    append_line %(= #{title})
+    author_line = nil
+    if (author_node = node.at_css('author'))
+      author_line = [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
+      if (email_node = author_node.at_css('email'))
+        author_line = %(#{author_line} <#{text email_node}>)
+      end
     end
-    append_line '[appendix]'
-    append_line %(#{'=' * @level} #{text_at_css node, '> title'})
-    traverse_child_elements node, true
+    append_line author_line if author_line
+    date_line = nil
+    if (revnumber_node = node.at_css('revhistory revnumber'))
+      date_line = %(v#{revnumber_node.text}, ) 
+    end
+    if (date_node = node.at_css('date'))
+      append_line %(#{date_line}#{date_node.text})
+    end
+    if node.name == 'bookinfo' || node.parent.name == 'book'
+      append_line ':doctype: book'
+    end
+    if @idprefix != '_'
+      append_line ":idprefix: #{@idprefix}".rstrip
+    end
+    if @idseparator != '_'
+      append_line ":idseparator: #{@idseparator}".rstrip
+    end
     false
   end
 
-  # TODO delegate to process_section w/ special=true
-  def visit_glossary node
-    append_blank_line
-    append_line '[glossary]'
-    append_line %(#{'=' * @level} #{text_at_css node, '> title'})
-    traverse_child_elements node, true
-    false
-  end
-
-  # TODO delegate to process_section w/ special=true
-  def visit_bibliography node
-    append_blank_line
-    append_line '[bibliography]'
-    append_line %(#{'=' * @level} #{text_at_css node, '> title'})
-    traverse_child_elements node, true
-    false
-  end
+  ### Section node (part | chapter | section | <special>) visitors
 
   def visit_section node
-    append_blank_line
-    id = node.attr('id')
-    # FIXME this needs to be more robust...should check if generated id does not match id
-    if id && !id.start_with?('_')
-      append_line %([[#{id}]])
-    end
-    append_line %(#{'=' * @level} #{text_at_css node, '> title'})
-    traverse_children node, true
-    false
+    process_section node
+  end
+
+  def visit_abstract node
+    process_section node, 'abstract'
+  end
+
+  def visit_appendix node
+    process_section node, 'appendix'
+  end
+
+  def visit_glossary node
+    process_section node, 'glossary'
+  end
+
+  def visit_bibliography node
+    process_section node, 'bibliography'
   end
 
   def visit_bridgehead node
     level = node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
     append_line '[float]'
+    # QUESTION should this be formatted_text?
     append_line %(#{'=' * level} #{text node})
     false
   end
 
-  def visit_title node
+  def process_section node, special = nil
+    append_blank_line
+    if special
+      append_line ':numbered!:'
+      append_blank_line
+      append_line %([#{special}])
+    end
+    # QUESTION should this be formatted_text_at_css?
+    title = text_at_css node, '> title'
+    auto_id = generate_id title
+    if (id = node.attr('id')) && id != auto_id
+      append_line %([[#{id}]])
+    end
+    append_line %(#{'=' * @level} #{title})
+    traverse_child_elements node, true
+    if special
+      append_blank_line
+      append_line ':numbered:'
+    end
     false
   end
 
+  def generate_id title
+    sep = @idseparator
+    pre = @idprefix
+    illegal_sectid_chars = /&(?:[[:alpha:]]+|#[[:digit:]]+|#x[[:alnum:]]+);|\W+?/
+    id = %(#{pre}#{title.downcase.gsub(illegal_sectid_chars, sep).tr_s(sep, sep).chomp(sep)})
+    if pre.empty? && id.start_with?(sep)
+      id = id[1..-1]
+      id = id[1..-1] while id.start_with?(sep)
+    end
+    id
+  end
+
+  ### Block node visitors
+
   def visit_formalpara node
     append_blank_line
-    append_title node
+    append_block_title node
     true
   end
 
   def visit_para node
+    append_blank_line
     append_blank_line
     true
   end
@@ -271,29 +365,26 @@ class DocBookVisitor
     true
   end
 
-  def visit_note node
-    process_admonition node
-  end
+  def process_admonition node
+    elements = node.elements
+    append_blank_line
+    append_block_title node
+    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
+      append_line %(#{node.name.upcase}: #{formatted_text child})
+    else
+      append_line %([#{node.name.upcase}])
+      append_line '===='
+      @continuation = true
+      traverse_child_elements node, false
+      append_line '===='
+    end
 
-  def visit_tip node
-    process_admonition node
-  end
-
-  def visit_warning node
-    process_admonition node
-  end
-
-  def visit_important node
-    process_admonition node
-  end
-
-  def visit_caution node
-    process_admonition node
+    false
   end
 
   def visit_itemizedlist node
     append_blank_line
-    append_title node
+    append_block_title node
     true
   end
 
@@ -308,7 +399,7 @@ class DocBookVisitor
 
   def visit_variablelist node
     append_blank_line
-    append_title node
+    append_block_title node
     true
   end
 
@@ -340,13 +431,12 @@ class DocBookVisitor
   def visit_varlistentry node
     append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
     append_line %(#{formatted_text(node.at_css node, '> term')}::)
-    item_text =  formatted_text(node.at_css node, '> listitem > simpara')
+    item_text = formatted_text(node.at_css node, '> listitem > para', '> listitem > simpara')
     if item_text
       item_text.split("\n").each do |line|
         append_line %(  #{line})
       end
     end
-    #append_line %(  #{formatted_text(node.at_css node, '> listitem > simpara')})
     # FIXME this doesn't catch complex children
     false
   end
@@ -397,12 +487,6 @@ class DocBookVisitor
     false
   end
 
-  def visit_formalpara node
-    append_blank_line
-    append_title node
-    true
-  end
-
   def visit_screen node
     append_blank_line unless node.parent.name == 'para'
     source_lines = node.text.rstrip.split("\n")
@@ -435,16 +519,17 @@ class DocBookVisitor
     false
   end
 
+  # FIXME wrap this up in a process_block method
   def visit_example node
     append_blank_line
-    append_title node 
+    append_block_title node 
     elements = node.elements.to_a
     if elements.size > 0 && elements.first.name == 'title'
       elements.shift
     end
-    if elements.size == 1 && (simpara = elements.first).name == 'simpara'
+    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[example]'
-      append_line formatted_text(simpara)
+      append_line formatted_text child
     else
       append_line '===='
       @continuation = true
@@ -454,17 +539,18 @@ class DocBookVisitor
     false
   end
 
+  # FIXME wrap this up in a process_block method
   def visit_sidebar node
     append_blank_line
-    append_title node 
+    append_block_title node 
     elements = node.elements.to_a
-    # TODO make skipping title a part of append_title perhaps?
+    # TODO make skipping title a part of append_block_title perhaps?
     if elements.size > 0 && elements.first.name == 'title'
       elements.shift
     end
-    if elements.size == 1 && (simpara = elements.first).name == 'simpara'
+    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[sidebar]'
-      append_line formatted_text(simpara)
+      append_line formatted_text child
     else
       append_line '****'
       @continuation = true
@@ -476,15 +562,15 @@ class DocBookVisitor
 
   def visit_blockquote node
     append_blank_line
-    append_title node 
+    append_block_title node 
     elements = node.elements.to_a
-    # TODO make skipping title a part of append_title perhaps?
+    # TODO make skipping title a part of append_block_title perhaps?
     if elements.size > 0 && elements.first.name == 'title'
       elements.shift
     end
-    if elements.size == 1 && (simpara = elements.first).name == 'simpara'
+    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[quote]'
-      append_line formatted_text(simpara)
+      append_line formatted_text child
     else
       append_line '____'
       @continuation = true
@@ -496,7 +582,7 @@ class DocBookVisitor
 
   def visit_table node
     append_blank_line
-    append_title node
+    append_block_title node
     process_table node
     false
   end
@@ -568,6 +654,31 @@ class DocBookVisitor
     false
   end
 
+  ### Inline node visitors
+
+  def visit_text node
+    unless node.text.rstrip.empty? && !PARA_TAG_NAMES.include?(node.parent.name)
+      append_text node.text, true
+    end
+    false
+  end
+
+  def visit_anchor node
+    id = node.attr('id')
+    append_text %([[#{id}]])
+    false
+  end
+
+  def visit_link node
+    linkend = node.attr('linkend')
+    label = formatted_text node
+    if label.include? ','
+      label = %("#{label}")
+    end
+    append_text %(<<#{linkend},#{label}>>)
+    false
+  end
+
   def visit_ulink node
     url = node.attr('url')
     prefix = 'link:'
@@ -583,25 +694,9 @@ class DocBookVisitor
     false
   end
 
-  def visit_link node
-    linkend = node.attr('linkend')
-    label = formatted_text node
-    if label.include? ','
-      label = %("#{label}")
-    end
-    append_text %(<<#{linkend},#{label}>>)
-    false
-  end
-
   def visit_xref node
     linkend = node.attr('linkend')
     append_text %(<<#{linkend}>>)
-    false
-  end
-
-  def visit_anchor node
-    id = node.attr('id')
-    append_text %([[#{id}]])
     false
   end
 
@@ -611,7 +706,7 @@ class DocBookVisitor
   end
 
   def visit_emphasis node
-    quote_char = node.attr('role') == 'strong' ? '*' : '_'
+    quote_char = node.attr('role') == 'strong' ? '*' : @emphasis_quote_char
     append_text %(#{quote_char}#{formatted_text node}#{quote_char})
     false
   end
@@ -640,7 +735,7 @@ class DocBookVisitor
   # FIXME share logic w/ visit_inlinemediaobject
   def visit_figure node
     append_blank_line
-    append_title node
+    append_block_title node
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
     generated_alt = File.basename(src)[0...-(File.extname(src).length)]
@@ -652,7 +747,7 @@ class DocBookVisitor
   end
 
   def visit_footnote node
-    append_text %(footnote:[#{text_at_css node, 'simpara'}])
+    append_text %(footnote:[#{text_at_css node, '> para', '> simpara'}])
     # FIXME not sure a blank line is always appropriate
     append_blank_line
     false
@@ -688,12 +783,6 @@ class DocBookVisitor
     false
   end
 
-  def visit_text node
-    unless node.text.rstrip.empty? && node.parent.name != 'simpara'
-      append_text node.text, true
-    end
-  end
-
   def visit_pi node
     case node.name
     when 'asciidoc-br'
@@ -702,54 +791,35 @@ class DocBookVisitor
     false
   end
 
-  def default_visit node
-    true
-  end
-
-  def process_info node
-    title = text_at_css node, '> title'
-    append_line %(= #{title})
-    author_line = nil
-    if (author_node = node.at_css('author'))
-      author_line = [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
-      if (email_node = author_node.at_css('email'))
-        author_line = %(#{author_line} <#{text email_node}>)
-      end
-    end
-    append_line author_line if author_line
-    date_line = nil
-    if (revnumber_node = node.at_css('revhistory revnumber'))
-      date_line = %(v#{revnumber_node.text}, ) 
-    end
-    if (date_node = node.at_css('date'))
-      append_line %(#{date_line}#{date_node.text})
-    end
-    if node.name == 'bookinfo' || node.parent.name == 'book'
-      append_line ':doctype: book'
-    end
+=begin
+  def visit_title node
     false
   end
 
-  def process_admonition node
-    elements = node.elements
-    append_blank_line
-    append_title node
-    if elements.size == 1 && (simpara = elements.first).name == 'simpara'
-      append_line %(#{node.name.upcase}: #{formatted_text simpara})
-    else
-      append_line %([#{node.name.upcase}])
-      append_line '===='
-      @continuation = true
-      traverse_child_elements node, false
-      append_line '===='
-    end
-
-    false
+  def visit_note node
+    process_admonition node
   end
+
+  def visit_tip node
+    process_admonition node
+  end
+
+  def visit_warning node
+    process_admonition node
+  end
+
+  def visit_important node
+    process_admonition node
+  end
+
+  def visit_caution node
+    process_admonition node
+  end
+=end
 end
 
 doc = Nokogiri::XML::Document.parse(docbook)
 
-visitor = DocBookVisitor.new
+visitor = DocBookVisitor.new :idseparator => '_', :idprefix => '_'
 doc.root.accept visitor
 puts visitor.lines * "\n"
