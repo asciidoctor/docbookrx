@@ -96,7 +96,7 @@ class DocBookVisitor
     if node
       if node.is_a? Nokogiri::XML::Node
         unsub ? reverse_subs(node.text) : node.text
-      elsif (first = node.first)
+      elsif node.is_a? Nokogiri::XML::NodeSet && (first = node.first)
         unsub ? reverse_subs(first.text) : first.text
       else
         nil
@@ -111,11 +111,11 @@ class DocBookVisitor
   end
 
   def format_text node
-    if node && !(node.is_a? Nokogiri::XML::Node)
+    if node && (node.is_a? Nokogiri::XML::NodeSet)
       node = node.first
     end
 
-    if node
+    if node.is_a? Nokogiri::XML::Node
       append_blank_line
       proceed node
       @lines.pop
