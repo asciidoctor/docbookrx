@@ -41,6 +41,8 @@ class DocBookVisitor
 
   SECTION_NAMES = ['abstract', 'appendix', 'glossary', 'bibliography']
 
+  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'filename']
+
   attr_reader :lines
 
   def initialize opts = {}
@@ -53,13 +55,19 @@ class DocBookVisitor
     @adjoin_next = false
     @idprefix = opts[:idprefix] || '_'
     @idseparator = opts[:idseparator] || '_'
-    @emphasis_quote_char = opts[:emphasis_quote_char] || '_'
+    @em_char = opts[:em_char] || '_'
+    @attributes = opts[:attributes] || {}
+    @preserve_line_wrap = opts.fetch(:preserve_line_wrap, false)
+    @sentence_per_line = opts.fetch(:sentence_per_line, true)
+    @delimit_source = opts.fetch(:delimit_source, true)
   end
 
   ## Traversal methods
 
   # Main processor loop
   def visit node
+    return if node.type == Nokogiri::XML::Node::COMMENT_NODE
+
     if (at_root = (node == node.document.root))
       before_traverse if respond_to? :before_traverse
     end
@@ -76,9 +84,11 @@ class DocBookVisitor
     if respond_to? visit_method_name
       result = send(visit_method_name, node)
     elsif ADMONITION_NAMES.include?(name) && (respond_to? :process_admonition)
-      result = send(:process_admonition, node)
+      result = send(:process_admonition, node, name)
     elsif SECTION_NAMES.include?(name) && (respond_to? :process_section)
       result = send(:process_section, node, name)
+    elsif LITERAL_NAMES.include?(name) && (respond_to? :process_literal)
+      result = send(:process_literal, node, name)
     elsif respond_to? :default_visit
       result = send(:default_visit, node)
     end
@@ -183,8 +193,21 @@ class DocBookVisitor
 
   def append_block_title node
     if (title = (format_text_at_css node, '> title'))
-      append_line %(.#{title})
+      append_line %(.#{title.gsub(/\n[[:blank:]]*/, ' ')})
       @adjoin_next = true
+      true
+    else
+      false
+    end
+  end
+
+  def append_block_role node
+    if (role = node.attr('role'))
+      append_line %([.#{role}])
+      #@adjoin_next = true
+      true
+    else
+      false
     end
   end
 
@@ -221,12 +244,14 @@ class DocBookVisitor
     false
   end
 
+  def visit_toc node
+    false
+  end
+
   ### Document node (article | book) & header node (articleinfo | bookinfo | info) visitors
 
   def visit_book node
-    @level += 1
-    proceed node, :using_elements => true
-    @level -= 1
+    process_doc node
   end
 
   def visit_bookinfo node
@@ -234,13 +259,18 @@ class DocBookVisitor
   end
 
   def visit_article node
-    @level += 1
-    proceed node
-    @level -= 1
+    process_doc node
   end
 
   def visit_articleinfo node
     process_info node
+  end
+
+  def process_doc node
+    @level += 1
+    proceed node, :using_elements => true
+    @level -= 1
+    false
   end
 
   def process_info node
@@ -255,14 +285,16 @@ class DocBookVisitor
     end
     append_line author_line if author_line
     date_line = nil
-    if (revnumber_node = node.at_css('revhistory revnumber'))
+    if (revnumber_node = node.at_css('revhistory revnumber', 'releaseinfo'))
       date_line = %(v#{revnumber_node.text}, ) 
     end
-    if (date_node = node.at_css('date'))
+    if (date_node = node.at_css('> date', '> pubdate'))
       append_line %(#{date_line}#{date_node.text})
     end
     if node.name == 'bookinfo' || node.parent.name == 'book'
       append_line ':doctype: book'
+      append_line ':numbered:'
+      append_line ':toc2:'
     end
     if @idprefix != '_'
       append_line ":idprefix: #{@idprefix}".rstrip
@@ -270,10 +302,17 @@ class DocBookVisitor
     if @idseparator != '_'
       append_line ":idseparator: #{@idseparator}".rstrip
     end
+    @attributes.each do |name, val|
+      append_line %(:#{name}: #{val}).rstrip
+    end
     false
   end
 
   ### Section node (part | chapter | section | <special>) visitors
+
+  def visit_chapter node
+    process_section node
+  end
 
   def visit_section node
     process_section node
@@ -288,7 +327,7 @@ class DocBookVisitor
     if (id = node.attr('id')) && id != auto_id
       append_line %([[#{id}]])
     end
-    append_line %(#{'=' * level} #{title})
+    append_line %(#{'=' * level} #{title.gsub(/\n[[:blank:]]*/, ' ')})
     false
   end
 
@@ -306,7 +345,7 @@ class DocBookVisitor
         append_line %([[#{id}]])
       end
     end
-    append_line %(#{'=' * @level} #{title})
+    append_line %(#{'=' * @level} #{title.gsub(/\n[[:blank:]]*/, ' ')})
     @level += 1
     proceed node, :using_elements => true
     @level -= 1
@@ -339,27 +378,30 @@ class DocBookVisitor
 
   def visit_para node
     append_blank_line
+    append_block_role node
     append_blank_line
     true
   end
 
   def visit_simpara node
     append_blank_line
+    append_block_role node
     append_blank_line
     true
   end
 
-  def process_admonition node
+  def process_admonition node, name
     elements = node.elements
     append_blank_line
     append_block_title node
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
-      append_line %(#{node.name.upcase}: #{format_text child})
+      append_line %(#{name.upcase}: #{format_text child})
     else
-      append_line %([#{node.name.upcase}])
+      append_line %([#{name.upcase}])
       append_line '===='
-      @continuation = true
+      @adjoin_next = true
       proceed node
+      @adjoin_next = false
       append_line '===='
     end
 
@@ -492,12 +534,13 @@ class DocBookVisitor
   end
 
   def visit_programlisting node
-    language = node.attr('language')
-    linenums = node.attr('linenumbering') != 'unnumbered'
+    language = node.attr('language') || @attributes['language']
+    language = %(,#{language.downcase}) if language
+    linenums = node.attr('linenumbering') == 'numbered'
     append_blank_line unless node.parent.name == 'para'
-    append_line %([source,#{language}#{linenums ? ',linenums' : nil}])
+    append_line %([source#{language}#{linenums ? ',linenums' : nil}])
     source_lines = node.text.rstrip.split("\n")
-    if (source_lines.detect {|line| line.rstrip.empty?})
+    if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
       append_line '----'
       append_line (source_lines * "\n")
       append_line '----'
@@ -520,8 +563,9 @@ class DocBookVisitor
       append_line format_text child
     else
       append_line '===='
-      @continuation = true
+      @adjoin_next = true
       proceed node
+      @adjoin_next = false
       append_line '===='
     end
     false
@@ -541,8 +585,9 @@ class DocBookVisitor
       append_line format_text child
     else
       append_line '****'
-      @continuation = true
+      @adjoin_next = true
       proceed node
+      @adjoin_next = false
       append_line '****'
     end
     false
@@ -561,8 +606,9 @@ class DocBookVisitor
       append_line format_text child
     else
       append_line '____'
-      @continuation = true
+      @adjoin_next = true
       proceed node
+      @adjoin_next = false
       append_line '____'
     end
     false
@@ -645,8 +691,19 @@ class DocBookVisitor
   ### Inline node visitors
 
   def visit_text node
-    unless node.text.rstrip.empty? && !PARA_TAG_NAMES.include?(node.parent.name)
-      append_text node.text, true
+    in_para = PARA_TAG_NAMES.include?(node.parent.name) || node.parent.name == 'phrase'
+    # drop text if empty unless we're processing a paragraph
+    unless node.text.rstrip.empty? && !in_para
+      text = node.text
+      if in_para
+        # strip leading indent for normal paragraph
+        # TODO may want to factor out this whitespace processing
+        text = text.gsub(/\n[[:blank:]]*/, @preserve_line_wrap ? "\n" : ' ')
+        if @sentence_per_line
+          text = text.gsub(/(^|[^A-Z])\. /, "\\1.\n")
+        end
+      end
+      append_text text, true
     end
     false
   end
@@ -675,8 +732,14 @@ class DocBookVisitor
     end
     label = text node
     if url != label
+      if (ref = @attributes.key(url))
+        url = %({#{ref}})
+      end
       append_text %(#{prefix}#{url}[#{label}])
     else
+      if (ref = @attributes.key(url))
+        url = %({#{ref}})
+      end
       append_text %(#{prefix}#{url})
     end
     false
@@ -689,24 +752,42 @@ class DocBookVisitor
   end
 
   def visit_phrase node
-    append_text %([#{node.attr 'role'}]#{format_text node})
+    # FIXME for now, double up the marks to be sure we catch it
+    #append_text %([#{node.attr 'role'}]##{format_text node}#)
+    append_text %([#{node.attr 'role'}]###{format_text node}##)
     false
   end
 
   def visit_emphasis node
-    quote_char = node.attr('role') == 'strong' ? '*' : @emphasis_quote_char
+    quote_char = node.attr('role') == 'strong' ? '*' : @em_char
     append_text %(#{quote_char}#{format_text node}#{quote_char})
     false
   end
 
   def visit_literal node
+    process_literal node
+  end
+
+  def visit_code node
+    process_literal node
+  end
+
+  def process_literal node, name = nil
+    unless name.nil?
+      shortname = name.sub('name', '')
+      append_text %([#{shortname}])
+    end
     node_text = node.text
-    if node_text == '`' || node_text.include?('`')
+    if node_text == '`'
       append_text '+`+'
+    # FIXME be smarter about when to use + vs `
+    # FIXME know when to use ++
+    elsif node_text.include? '`'
+      append_text %(+#{node_text}+)
     else
       append_text %(`#{node_text}`)
     end
-    false
+    false 
   end
 
   def visit_inlinemediaobject node
@@ -822,6 +903,6 @@ end
 
 doc = Nokogiri::XML::Document.parse(docbook)
 
-visitor = DocBookVisitor.new :idseparator => '_', :idprefix => '_'
+visitor = DocBookVisitor.new :idseparator => '_', :idprefix => '_', :em_char => '\'', :attributes => {'ref-contribute' => 'http://beanvalidation.org/contribute/', 'ref-jsr-317' => 'http://jcp.org/en/jsr/detail?id=317'}
 doc.root.accept visitor
 puts visitor.lines * "\n"

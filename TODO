@@ -1,6 +1,7 @@
 = TODO
 
 - make level shifting configurable or auto-detectable?
+- option for removing hard-wrap (and perhaps one for sentence-per-line)
 - fix extra line above variable list
 - variablelist children
 - table width
