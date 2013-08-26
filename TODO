@@ -1,0 +1,19 @@
+= TODO
+
+- fix extra line above variable list
+- variablelist children
+- table width
+- table col widths
+- inline formatting in table cell content
+- verse blockquote
+- citetitle and attribute on blockquote
+- list continuation doesn't get added if literallayout is delimited
+- qanda list
+- list ids
+- callouts
+- make char for emphasis quoting an option
+- make literal paragraph indent size an option
+- try to use + for literal when possible
+- nested lists
+- extract urls as attributes
+- calculate section id, only add if the one specified is different
