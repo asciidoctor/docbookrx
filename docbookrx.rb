@@ -867,6 +867,16 @@ end
 
 doc = Nokogiri::XML::Document.parse(docbook)
 
-visitor = DocBookVisitor.new :idseparator => '_', :idprefix => '_', :em_char => '\'', :attributes => {'ref-contribute' => 'http://beanvalidation.org/contribute/', 'ref-jsr-317' => 'http://jcp.org/en/jsr/detail?id=317'}
+options = {
+#  :idprefix => '',
+#  :idseparator => '-',
+#  :em_char => '\'',
+#  :attributes => {
+#    'ref-contribute' => 'http://beanvalidation.org/contribute/',
+#    'ref-jsr-317' => 'http://jcp.org/en/jsr/detail?id=317'
+#  }
+}
+
+visitor = DocBookVisitor.new options
 doc.root.accept visitor
 puts visitor.lines * "\n"
