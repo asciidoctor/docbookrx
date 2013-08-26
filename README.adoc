@@ -6,7 +6,7 @@ ifndef::safe-mode[]
 = DocBook Rx
 endif::safe-mode[]
 
-The Rx you need to fix your DocBook problem.
+Just the Rx you need to fix your DocBook problem!
 
 The docbookrx.rb script is the beginnings of a DocBook to http://asciidoc.org[AsciiDoc] converter written in Ruby.
 This script is far from perfect at the moment and some of the conversion is done hastily.
