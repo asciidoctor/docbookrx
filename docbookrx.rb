@@ -75,7 +75,7 @@ class DocBookVisitor
       result = send(:default_visit, node)
     end
     if result == true
-      traverse_children node, false
+      traverse_children node
     end
 
     if at_root
@@ -83,29 +83,12 @@ class DocBookVisitor
     end
   end
 
-  def traverse_children node, increment_level
-    if increment_level
-      @level += 1
-    end
-    node.children.each do |child|
+  def traverse_children node, opts = {}
+    (opts[:using_elements] ? node.elements : node.children).each do |child|
       child.accept self
     end
-    if increment_level
-      @level -= 1
-    end
   end
-
-  def traverse_child_elements node, increment_level
-    if increment_level
-      @level += 1
-    end
-    node.elements.each_with_index do |child, i|
-      child.accept self
-    end
-    if increment_level
-      @level -= 1
-    end
-  end
+  alias :proceed :traverse_children
 
   ## Text extraction and processing methods
 
@@ -134,7 +117,7 @@ class DocBookVisitor
 
     if node
       append_blank_line
-      traverse_children node, false
+      proceed node
       @lines.pop
     else
       nil
@@ -233,8 +216,9 @@ class DocBookVisitor
   ### Document node (article | book) & header node (articleinfo | bookinfo | info) visitors
 
   def visit_book node
-    traverse_children node, true
-    false
+    @level += 1
+    proceed node, :using_elements => true
+    @level -= 1
   end
 
   def visit_bookinfo node
@@ -242,8 +226,9 @@ class DocBookVisitor
   end
 
   def visit_article node
-    traverse_children node, true
-    false
+    @level += 1
+    proceed node
+    @level -= 1
   end
 
   def visit_articleinfo node
@@ -330,7 +315,9 @@ class DocBookVisitor
       end
     end
     append_line %(#{'=' * @level} #{title})
-    traverse_child_elements node, true
+    @level += 1
+    proceed node, :using_elements => true
+    @level -= 1
     if special
       append_blank_line
       append_line ':numbered:'
@@ -380,7 +367,7 @@ class DocBookVisitor
       append_line %([#{node.name.upcase}])
       append_line '===='
       @continuation = true
-      traverse_child_elements node, false
+      proceed node
       append_line '===='
     end
 
@@ -472,7 +459,7 @@ class DocBookVisitor
 
   def visit_bibliomixed node
     append_blank_line
-    traverse_children node, false
+    proceed node
     append_line @lines.pop.sub(/^\[(.*?)\]/, '* [[[\\1]]]')
     false
   end
@@ -538,7 +525,7 @@ class DocBookVisitor
     else
       append_line '===='
       @continuation = true
-      traverse_child_elements node, false
+      proceed node
       append_line '===='
     end
     false
@@ -559,7 +546,7 @@ class DocBookVisitor
     else
       append_line '****'
       @continuation = true
-      traverse_child_elements node, false
+      proceed node
       append_line '****'
     end
     false
@@ -579,7 +566,7 @@ class DocBookVisitor
     else
       append_line '____'
       @continuation = true
-      traverse_child_elements node, false
+      proceed node
       append_line '____'
     end
     false
