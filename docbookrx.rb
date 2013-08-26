@@ -39,6 +39,8 @@ class DocBookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
+  SECTION_NAMES = ['abstract', 'appendix', 'glossary', 'bibliography']
+
   attr_reader :lines
 
   def initialize opts = {}
@@ -64,13 +66,19 @@ class DocBookVisitor
     name = node.name
     if node.type == Nokogiri::XML::Node::PI_NODE
       visit_method_name = :visit_pi
-    elsif ADMONITION_NAMES.include?(name)
-      visit_method_name = :process_admonition
+    #elsif ADMONITION_NAMES.include?(name)
+    #  visit_method_name = :process_admonition
+    #elsif SECTION_NAMES.include?(name)
+    #  visit_method_name = :process_section
     else
       visit_method_name = "visit_#{name}".to_sym
     end
     if respond_to? visit_method_name
       result = send(visit_method_name, node)
+    elsif ADMONITION_NAMES.include?(name) && (respond_to? :process_admonition)
+      result = send(:process_admonition, node)
+    elsif SECTION_NAMES.include?(name) && (respond_to? :process_section)
+      result = send(:process_section, node, name)
     elsif respond_to? :default_visit
       result = send(:default_visit, node)
     end
@@ -271,22 +279,6 @@ class DocBookVisitor
     process_section node
   end
 
-  def visit_abstract node
-    process_section node, 'abstract'
-  end
-
-  def visit_appendix node
-    process_section node, 'appendix'
-  end
-
-  def visit_glossary node
-    process_section node, 'glossary'
-  end
-
-  def visit_bibliography node
-    process_section node, 'bibliography'
-  end
-
   def visit_bridgehead node
     level = node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
@@ -454,6 +446,10 @@ class DocBookVisitor
   def visit_bibliodiv node
     append_blank_line
     append_line '[bibliography]'
+    true
+  end
+
+  def visit_bibliomisc node
     true
   end
 
@@ -784,10 +780,24 @@ class DocBookVisitor
   end
 
 =begin
-  def visit_title node
-    false
+  # special sections are automatically delegated to process_section
+  def visit_abstract node
+    process_section node, 'abstract'
   end
 
+  def visit_appendix node
+    process_section node, 'appendix'
+  end
+
+  def visit_glossary node
+    process_section node, 'glossary'
+  end
+
+  def visit_bibliography node
+    process_section node, 'bibliography'
+  end
+
+  # admonitions are automatically delegated to process_admonition
   def visit_note node
     process_admonition node
   end
