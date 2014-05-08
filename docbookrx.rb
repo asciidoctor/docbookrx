@@ -532,6 +532,13 @@ class DocBookVisitor
         append_line %(  #{line})
       end
     end
+
+    # support listitem figures in a listentry
+    if node.at_css('listitem figure')
+      # warn %(#{node.at_css('listitem figure')})
+      visit_figure node.at_css('listitem figure')
+    end
+
     # FIXME this doesn't catch complex children
     false
   end
@@ -874,7 +881,11 @@ class DocBookVisitor
     false
   end
 
-  # FIXME share logic w/ visit_inlinemediaobject
+  def visit_mediaobject node
+    visit_figure node
+  end
+
+  # FIXME share logic w/ visit_inlinemediaobject, which is the same here except no block_title and uses append_text, not append_line
   def visit_figure node
     append_blank_line
     append_block_title node
