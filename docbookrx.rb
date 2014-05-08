@@ -43,6 +43,8 @@ class DocBookVisitor
 
   LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'filename']
 
+  LITERAL_NAMES_UNNAMED = ['application', 'command', 'guibutton', 'guimenu', 'guilabel', 'keycap']
+
   attr_reader :lines
 
   def initialize opts = {}
@@ -57,7 +59,7 @@ class DocBookVisitor
     @idseparator = opts[:idseparator] || '_'
     @em_char = opts[:em_char] || '_'
     @attributes = opts[:attributes] || {}
-    @preserve_line_wrap = opts.fetch(:preserve_line_wrap, false)
+    @preserve_line_wrap = opts.fetch(:preserve_line_wrap, true)
     @sentence_per_line = opts.fetch(:sentence_per_line, true)
     @delimit_source = opts.fetch(:delimit_source, true)
   end
@@ -89,6 +91,10 @@ class DocBookVisitor
       result = send(:process_section, node, name)
     elsif LITERAL_NAMES.include?(name) && (respond_to? :process_literal)
       result = send(:process_literal, node, name)
+    elsif LITERAL_NAMES_UNNAMED.include?(name) && (respond_to? :process_literal)
+      result = send(:process_literal, node)
+    elsif node.type == 5 && (respond_to? :passthru_entity_node) # html entity node
+      result = send(:passthru_entity_node, node)
     elsif respond_to? :default_visit
       result = send(:default_visit, node)
     end
@@ -193,7 +199,12 @@ class DocBookVisitor
 
   def append_block_title node
     if (title = (format_text_at_css node, '> title'))
-      append_line %(.#{title.gsub(/\n[[:blank:]]*/, ' ')})
+      # special case for <itemizedlist role="see-also-list"><title> -- omit the prefix "." as we want simple text on a bullet, not a heading
+      if (node.attr('role') == "see-also-list")
+        append_line %(#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
+      else
+        append_line %(.#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
+      end
       @adjoin_next = true
       true
     else
@@ -234,8 +245,15 @@ class DocBookVisitor
 
   ## Node visitor callbacks
 
-  def default_visit node
-    warn %(No visitor defined for <#{node.name}> element! Skipping.)
+  # pass thru HTML entities unchanged, eg., for &rarr;
+  def passthru_entity_node node
+    # warn %(Pass through #{node} unchanged)
+    append_text %(#{node})
+    false
+  end
+
+ def default_visit node
+    warn %(No visitor defined for <#{node.name}> element, type = #{node.type}! Skipping.)
     false
   end
 
@@ -248,7 +266,7 @@ class DocBookVisitor
     false
   end
 
-  ### Document node (article | book) & header node (articleinfo | bookinfo | info) visitors
+  ### Document node (article | book | chapter) & header node (articleinfo | bookinfo | info) visitors
 
   def visit_book node
     process_doc node
@@ -264,6 +282,15 @@ class DocBookVisitor
 
   def visit_articleinfo node
     process_info node
+  end
+
+  # treat chapters as books, and number their sections
+  def visit_chapter node
+    append_line ':numbered:'
+    append_line ':doctype: book'
+    append_line ':toc: left'
+    append_blank_line
+    process_doc node
   end
 
   def process_doc node
@@ -291,7 +318,7 @@ class DocBookVisitor
     if (date_node = node.at_css('> date', '> pubdate'))
       append_line %(#{date_line}#{date_node.text})
     end
-    if node.name == 'bookinfo' || node.parent.name == 'book'
+    if node.name == 'bookinfo' || node.parent.name == 'book' || node.parent.name == 'chapter'
       append_line ':doctype: book'
       append_line ':numbered:'
       append_line ':toc2:'
@@ -332,11 +359,7 @@ class DocBookVisitor
     false
   end
 
-  ### Section node (part | chapter | section | <special>) visitors
-
-  def visit_chapter node
-    process_section node
-  end
+  ### Section node (part | section | <special>) visitors
 
   def visit_section node
     process_section node
@@ -348,7 +371,8 @@ class DocBookVisitor
     append_line '[float]'
     title = format_text node
     auto_id = generate_id title
-    if (id = node.attr('id')) && id != auto_id
+    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
+    if (id = node.attr('id').downcase.gsub("_","-")) && id != auto_id
       append_line %([[#{id}]])
     end
     append_line %(#{'=' * level} #{title.gsub(/\n[[:blank:]]*/, ' ')})
@@ -364,12 +388,13 @@ class DocBookVisitor
     end
     title = format_text_at_css node, '> title'
     auto_id = generate_id title
-    if (id = node.attr('id'))
+    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
+    if (id = node.attr('id').downcase.gsub("_","-"))
       if id != (generate_id title)
         append_line %([[#{id}]])
       end
     end
-    append_line %(#{'=' * @level} #{title.gsub(/\n[[:blank:]]*/, ' ')})
+    append_line %(#{'=' * @level} #{title.gsub(/\n[[:blank:]\t]*/, ' ')})
     @level += 1
     proceed node, :using_elements => true
     @level -= 1
@@ -438,7 +463,15 @@ class DocBookVisitor
     true
   end
 
-  def visit_orderedlist node
+  def visit_procedure node
+    visit_orderedlist node
+  end
+
+  def visit_substeps node
+    visit_orderedlist node
+  end
+
+ def visit_orderedlist node
     @list_index = 1
     append_blank_line
     if (numeration = node.attr('numeration')) != 'arabic'
@@ -453,15 +486,24 @@ class DocBookVisitor
     true
   end
 
+  def visit_step node
+    visit_listitem node
+  end
+
   def visit_listitem node
     elements = node.elements.to_a
     item_text = format_text elements.shift
     marker = (node.parent.name == 'orderedlist' ? '.' : '*')
+    didbullet=false
     item_text.split("\n").each_with_index do |line, i|
-      if i == 0
-        append_line %(#{marker} #{line})
-      else
-        append_line %(  #{line})
+      line = line.gsub("^[[:blank:]\t]*","")
+      if line.length > 0
+        if !didbullet
+          append_line %(#{marker} #{line})
+          didbullet=true
+        else
+          append_line %(  #{line})
+        end
       end
     end
 
@@ -480,7 +522,7 @@ class DocBookVisitor
 
   def visit_varlistentry node
     append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
-    append_line %(#{format_text(node.at_css node, '> term')}::)
+    append_line %(#{format_text(node.at_css node, '> term')};;)
     item_text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
     if item_text
       item_text.split("\n").each do |line|
@@ -722,7 +764,7 @@ class DocBookVisitor
       if in_para
         # strip leading indent for normal paragraph
         # TODO may want to factor out this whitespace processing
-        text = text.gsub(/\n[[:blank:]]*/, @preserve_line_wrap ? "\n" : ' ')
+        text = text.gsub(/\n[[:blank:]\t]*/, @preserve_line_wrap ? "\n" : ' ')
         if @sentence_per_line
           text = text.gsub(/(^|[^A-Z])\. /, "\\1.\n")
         end
@@ -733,7 +775,8 @@ class DocBookVisitor
   end
 
   def visit_anchor node
-    id = node.attr('id')
+    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
+    id = node.attr('id').downcase.gsub("_","-")
     append_text %([[#{id}]])
     false
   end
@@ -771,7 +814,10 @@ class DocBookVisitor
 
   def visit_xref node
     linkend = node.attr('linkend')
-    append_text %(<<#{linkend}>>)
+    label = linkend.gsub("_"," ")
+    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
+    linkend = linkend.downcase.gsub("_","-")
+    append_text %(<<#{linkend},#{label}>>)
     false
   end
 
@@ -821,7 +867,7 @@ class DocBookVisitor
     if alt == generated_alt
       alt = nil
     end
-    append_text %(image:#{src}[#{alt}])
+    append_text %(image:#{src}["#{alt}"])
     false
   end
 
@@ -831,11 +877,14 @@ class DocBookVisitor
     append_block_title node
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
+    #title = node.at_css('title').text
+
     generated_alt = File.basename(src)[0...-(File.extname(src).length)]
     if alt == generated_alt
       alt = nil
     end
-    append_line %(image::#{src}[#{alt}])
+    #append_line %(.#{title})
+    append_line %(image::#{src}["#{alt}"])
     false
   end
 
