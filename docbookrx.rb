@@ -289,6 +289,7 @@ class DocBookVisitor
     append_line ':numbered:'
     append_line ':doctype: book'
     append_line ':toc: left'
+    append_line ':icons: font'
     append_blank_line
     process_doc node
   end
@@ -470,6 +471,8 @@ class DocBookVisitor
   def visit_substeps node
     visit_orderedlist node
   end
+
+  # TODO handle stepalternatives
 
  def visit_orderedlist node
     @list_index = 1
