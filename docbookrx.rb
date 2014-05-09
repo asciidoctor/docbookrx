@@ -834,7 +834,11 @@ class DocBookVisitor
   def visit_phrase node
     # FIXME for now, double up the marks to be sure we catch it
     #append_text %([#{node.attr 'role'}]##{format_text node}#)
-    append_text %([#{node.attr 'role'}]###{format_text node}##)
+    if node.attr 'role'
+      append_text %([#{node.attr 'role'}]###{format_text node}##)
+    else
+      append_text %(#{format_text node})
+    end
     false
   end
 
