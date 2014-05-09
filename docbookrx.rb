@@ -472,12 +472,15 @@ class DocBookVisitor
     visit_orderedlist node
   end
 
-  # TODO handle stepalternatives
+  def visit_stepalternatives node
+    visit_orderedlist node
+  end
 
  def visit_orderedlist node
     @list_index = 1
     append_blank_line
-    if (numeration = node.attr('numeration')) != 'arabic'
+    numeration = node.attr('numeration')
+    if (numeration && numeration != 'arabic')
       append_line %([#{numeration}])
     end
     true
@@ -496,12 +499,20 @@ class DocBookVisitor
   def visit_listitem node
     elements = node.elements.to_a
     item_text = format_text elements.shift
-    marker = (node.parent.name == 'orderedlist' ? '.' : '*')
+    marker = (node.parent.name == 'orderedlist' ? '.' : (node.parent.name == 'stepalternatives' ? 'a.' : '*'))
     didbullet=false
     item_text.split("\n").each_with_index do |line, i|
       line = line.gsub("^[[:blank:]\t]*","")
       if line.length > 0
         if !didbullet
+          # TODO: put title on the procedure
+          #warn %(#{node.parent.name})
+          #title = node.at_css(node.parent.name, 'title')
+          #if (title)
+          #  title = title.text
+          #  warn %(  #{title})
+          #  append_line %(.#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
+          #end
           append_line %(#{marker} #{line})
           didbullet=true
         else
