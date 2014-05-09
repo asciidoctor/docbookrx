@@ -444,17 +444,16 @@ class DocBookVisitor
     elements = node.elements
     append_blank_line
     append_block_title node
+    append_line %([#{name.upcase}])
+    append_line '===='
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
-      append_line %(#{name.upcase}: #{format_text child})
+      append_line %(#{format_text child})
     else
-      append_line %([#{name.upcase}])
-      append_line '===='
       @adjoin_next = true
       proceed node
       @adjoin_next = false
-      append_line '===='
     end
-
+    append_line '===='
     false
   end
 
@@ -465,6 +464,8 @@ class DocBookVisitor
   end
 
   def visit_procedure node
+    append_line %(.Procedure: #{node.at_css('title').text})
+    append_blank_line
     visit_orderedlist node
   end
 
@@ -499,20 +500,21 @@ class DocBookVisitor
   def visit_listitem node
     elements = node.elements.to_a
     item_text = format_text elements.shift
-    marker = (node.parent.name == 'orderedlist' ? '.' : (node.parent.name == 'stepalternatives' ? 'a.' : '*'))
+    
+    # do we want variable depths of bullets?
+    depth = (node.ancestors.length - 4)
+    # or static bullet depths
+    depth = 1
+
+    marker = (node.parent.name == 'orderedlist' || node.parent.name == 'procedure' ? '.' * depth : 
+      (node.parent.name == 'stepalternatives' ? 'a.' : '*' * depth))
     didbullet=false
     item_text.split("\n").each_with_index do |line, i|
       line = line.gsub("^[[:blank:]\t]*","")
       if line.length > 0
-        if !didbullet
-          # TODO: put title on the procedure
-          #warn %(#{node.parent.name})
-          #title = node.at_css(node.parent.name, 'title')
-          #if (title)
-          #  title = title.text
-          #  warn %(  #{title})
-          #  append_line %(.#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
-          #end
+        if (line == "====")
+          append_line %(#{line})
+        elsif (!didbullet)
           append_line %(#{marker} #{line})
           didbullet=true
         else
@@ -913,6 +915,7 @@ class DocBookVisitor
       alt = nil
     end
     #append_line %(.#{title})
+    append_blank_line
     append_line %(image::#{src}["#{alt}"])
     false
   end
