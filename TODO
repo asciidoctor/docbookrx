@@ -1,5 +1,8 @@
 = TODO
 
+- make dsl block for adjoing children inside deliminted block
+- use entity_ref?, comment?, pi? instead of comparing type to constant (mixin if necessary)
+- try to set leveloffset only once
 - make level shifting configurable or auto-detectable?
 - fix extra line above variable list
 - variablelist children
@@ -17,3 +20,9 @@
 - try to use + for literal when possible
 - nested lists
 - cleaner solution for skipping title node
+
+== Samples
+
+- https://github.com/beanvalidation/beanvalidation-spec
+- https://github.com/SpringSource/spring-security/tree/master/docs
+- https://github.com/belaban/JGroups/pull/95/files
