@@ -340,7 +340,7 @@ class DocBookVisitor
   def visit_include node
     # QUESTION should we reuse this instance to traverse the new tree?
     include_infile = node.attr 'href'
-    include_outfile = include_infile.sub '.xml', '.ad'
+    include_outfile = include_infile.sub '.xml', '.adoc'
     if File.readable? include_infile
       doc = Nokogiri::XML::Document.parse(File.read include_infile)
       # TODO pass in options that were passed to this visitor
