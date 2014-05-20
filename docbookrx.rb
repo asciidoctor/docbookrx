@@ -12,6 +12,19 @@ end
 docbook = File.read infile
 
 class DocBookVisitor
+  # transfer node type constants from Nokogiri
+  Nokogiri::XML::Node.constants.each do |c|
+    const_set c, (Nokogiri::XML::Node.const_get c) if c.to_s.end_with? '_NODE'
+  end
+
+  IndentationRx = /^[[:blank:]]+/
+  LeadingEndlinesRx = /\A\n+/
+  TrailingEndlinesRx = /\n+\z/
+  FirstLineIndentRx = /\A[[:blank:]]*/
+  WrappedIndentRx = /\n[[:blank:]]*/
+
+  EOL = "\n"
+
   ENTITY_TABLE = {
      169 => '(C)',
      174 => '(R)',
@@ -39,11 +52,15 @@ class DocBookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
-  SECTION_NAMES = ['abstract', 'appendix', 'glossary', 'bibliography']
+  SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'glossary', 'bibliography']
 
-  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'filename']
+  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'application', 'command']
 
-  LITERAL_NAMES_UNNAMED = ['application', 'command', 'guibutton', 'guimenu', 'guilabel', 'keycap']
+  LITERAL_UNNAMED = ['application', 'command']
+
+  PATH_NAMES = ['directory', 'filename']
+
+  UI_NAMES = ['guibutton', 'guimenu', 'guilabel', 'keycap']
 
   attr_reader :lines
 
@@ -59,52 +76,55 @@ class DocBookVisitor
     @idseparator = opts[:idseparator] || '_'
     @em_char = opts[:em_char] || '_'
     @attributes = opts[:attributes] || {}
-    @preserve_line_wrap = opts.fetch(:preserve_line_wrap, true)
-    @sentence_per_line = opts.fetch(:sentence_per_line, true)
-    @delimit_source = opts.fetch(:delimit_source, true)
+    @runin_admonition_label = opts.fetch :runin_admonition_label, true
+    @sentence_per_line = opts.fetch :sentence_per_line, true
+    @preserve_line_wrap = if @sentence_per_line
+      false
+    else
+      opts.fetch :preserve_line_wrap, true
+    end
+    @delimit_source = opts.fetch :delimit_source, true
   end
 
   ## Traversal methods
 
   # Main processor loop
   def visit node
-    return if node.type == Nokogiri::XML::Node::COMMENT_NODE
+    return if node.type == COMMENT_NODE
+    return if node.instance_variable_get :@skip
 
-    if (at_root = (node == node.document.root))
-      before_traverse if respond_to? :before_traverse
-    end
+    before_traverse if (at_root = (node == node.document.root)) && (respond_to? :before_traverse)
+
     name = node.name
-    if node.type == Nokogiri::XML::Node::PI_NODE
-      visit_method_name = :visit_pi
-    #elsif ADMONITION_NAMES.include?(name)
-    #  visit_method_name = :process_admonition
-    #elsif SECTION_NAMES.include?(name)
-    #  visit_method_name = :process_section
+    visit_method_name = case node.type
+    when PI_NODE
+      :visit_pi
+    when ENTITY_REF_NODE
+      :visit_entity_ref
     else
-      visit_method_name = "visit_#{name}".to_sym
-    end
-    if respond_to? visit_method_name
-      result = send(visit_method_name, node)
-    elsif ADMONITION_NAMES.include?(name) && (respond_to? :process_admonition)
-      result = send(:process_admonition, node, name)
-    elsif SECTION_NAMES.include?(name) && (respond_to? :process_section)
-      result = send(:process_section, node, name)
-    elsif LITERAL_NAMES.include?(name) && (respond_to? :process_literal)
-      result = send(:process_literal, node, name)
-    elsif LITERAL_NAMES_UNNAMED.include?(name) && (respond_to? :process_literal)
-      result = send(:process_literal, node)
-    elsif node.type == 5 && (respond_to? :passthru_entity_node) # html entity node
-      result = send(:passthru_entity_node, node)
-    elsif respond_to? :default_visit
-      result = send(:default_visit, node)
-    end
-    if result == true
-      traverse_children node
+      if ADMONITION_NAMES.include? name
+        :process_admonition
+      elsif LITERAL_NAMES.include? name
+        :process_literal
+      elsif PATH_NAMES.include? name
+        :process_path
+      elsif UI_NAMES.include? name
+        :process_ui
+      elsif SPECIAL_SECTION_NAMES.include? name
+        :process_special_section
+      else
+        %(visit_#{name}).to_sym
+      end
     end
 
-    if at_root
-      after_traverse if respond_to? :after_traverse
+    result = if respond_to? visit_method_name
+      send visit_method_name, node
+    elsif respond_to? :default_visit
+      send :default_visit, node
     end
+
+    traverse_children node if result == true
+    after_traverse if at_root && (respond_to? :after_traverse)
   end
 
   def traverse_children node, opts = {}
@@ -131,7 +151,7 @@ class DocBookVisitor
   end
 
   def text_at_css node, css, unsub = true
-    text(node.at_css css, unsub)
+    text (node.at_css css, unsub)
   end
 
   def format_text node
@@ -149,11 +169,11 @@ class DocBookVisitor
   end
 
   def format_text_at_css node, css
-    format_text(node.at_css css)
+    format_text (node.at_css css)
   end
 
   def entity number
-    [number].pack('U*')
+    [number].pack 'U*'
   end
 
   # Replaces XML entities, and other encoded forms that AsciiDoc automatically
@@ -171,10 +191,10 @@ class DocBookVisitor
   # Returns The processed String
   def reverse_subs str
     ENTITY_TABLE.each do |num, text|
-      str = str.gsub(entity(num), text)
+      str = str.gsub((entity num), text)
     end
     REPLACEMENT_TABLE.each do |original, replacement|
-      str = str.gsub(original, replacement)
+      str = str.gsub original, replacement
     end
     str
   end
@@ -197,14 +217,15 @@ class DocBookVisitor
   end
   alias :start_new_line :append_blank_line
 
-  def append_block_title node
+  def append_block_title node, prefix = nil
     if (title = (format_text_at_css node, '> title'))
-      # special case for <itemizedlist role="see-also-list"><title> -- omit the prefix "." as we want simple text on a bullet, not a heading
-      if (node.attr('role') == "see-also-list")
-        append_line %(#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
-      else
-        append_line %(.#{title.gsub(/\n[[:blank:]\t]*/, ' ')})
+      leading_char = '.'
+      # special case for <itemizedlist role="see-also-list"><title>:
+      # omit the prefix '.' as we want simple text on a bullet, not a heading
+      if node.parent.name == 'itemizedlist' && ((node.attr 'role') == 'see-also-list')
+        leading_char = nil
       end
+      append_line %(#{leading_char}#{prefix}#{unwrap_text title})
       @adjoin_next = true
       true
     else
@@ -245,15 +266,14 @@ class DocBookVisitor
 
   ## Node visitor callbacks
 
-  # pass thru HTML entities unchanged, eg., for &rarr;
-  def passthru_entity_node node
-    # warn %(Pass through #{node} unchanged)
-    append_text %(#{node})
+ def default_visit node
+    warn %(No visitor defined for <#{node.name}>! Skipping.)
     false
   end
 
- def default_visit node
-    warn %(No visitor defined for <#{node.name}> element, type = #{node.type}! Skipping.)
+  # pass thru XML entities unchanged, eg., for &rarr;
+  def visit_entity_ref node
+    append_text %(#{node})
     false
   end
 
@@ -284,14 +304,25 @@ class DocBookVisitor
     process_info node
   end
 
-  # treat chapters as books, and number their sections
   def visit_chapter node
-    append_line ':numbered:'
-    append_line ':doctype: book'
-    append_line ':toc: left'
-    append_line ':icons: font'
-    append_blank_line
-    process_doc node
+    # treat document with <chapter> root element as books
+    if node == node.document.root
+      @adjoin_next = true
+      process_section node do
+        append_line ':doctype: book'
+        append_line ':numbered:'
+        append_line ':toc: left'
+        append_line ':icons: font'
+        append_line ':experimental:'
+        append_line %(:idprefix: #{@idprefix}).rstrip unless @idprefix == '_'
+        append_line %(:idseparator: #{@idseparator}).rstrip unless @idseparator == '_'
+        @attributes.each do |name, val|
+          append_line %(:#{name}: #{val}).rstrip
+        end
+      end
+    else
+      default_visit node
+    end
   end
 
   def process_doc node
@@ -305,7 +336,7 @@ class DocBookVisitor
     title = text_at_css node, '> title'
     append_line %(= #{title})
     author_line = nil
-    if (author_node = node.at_css('author'))
+    if (author_node = (node.at_css 'author'))
       author_line = [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
       if (email_node = author_node.at_css('email'))
         author_line = %(#{author_line} <#{text email_node}>)
@@ -322,14 +353,12 @@ class DocBookVisitor
     if node.name == 'bookinfo' || node.parent.name == 'book' || node.parent.name == 'chapter'
       append_line ':doctype: book'
       append_line ':numbered:'
-      append_line ':toc2:'
+      append_line ':toc: left'
+      append_line ':icons: font'
+      append_line ':experimental:'
     end
-    if @idprefix != '_'
-      append_line ":idprefix: #{@idprefix}".rstrip
-    end
-    if @idseparator != '_'
-      append_line ":idseparator: #{@idseparator}".rstrip
-    end
+    append_line %(:idprefix: #{@idprefix}).rstrip unless @idprefix == '_'
+    append_line %(:idseparator: #{@idseparator}).rstrip unless @idseparator == '_'
     @attributes.each do |name, val|
       append_line %(:#{name}: #{val}).rstrip
     end
@@ -348,7 +377,7 @@ class DocBookVisitor
       doc.root.accept visitor
       result = visitor.lines
       result.shift while result.size > 0 && result.first.empty?
-      File.open(include_outfile, 'w') {|f| f.write(visitor.lines * "\n") }
+      File.open(include_outfile, 'w') {|f| f.write(visitor.lines * EOL) }
     else
       warn %(Include file not readable: #{href})
     end
@@ -360,7 +389,7 @@ class DocBookVisitor
     false
   end
 
-  ### Section node (part | section | <special>) visitors
+  ### Section node (part | section | chapter | %special%) visitors
 
   def visit_section node
     process_section node
@@ -371,13 +400,15 @@ class DocBookVisitor
     append_blank_line
     append_line '[float]'
     title = format_text node
-    auto_id = generate_id title
-    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
-    if (id = node.attr('id').downcase.gsub("_","-")) && id != auto_id
+    if (id = normalize_id (node.attr 'id')) && id != (generate_id title)
       append_line %([[#{id}]])
     end
-    append_line %(#{'=' * level} #{title.gsub(/\n[[:blank:]]*/, ' ')})
+    append_line %(#{'=' * level} #{unwrap_text title})
     false
+  end
+
+  def process_special_section node
+    process_section node, node.name
   end
 
   def process_section node, special = nil
@@ -388,14 +419,11 @@ class DocBookVisitor
       append_line %([#{special}])
     end
     title = format_text_at_css node, '> title'
-    auto_id = generate_id title
-    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
-    if (id = node.attr('id').downcase.gsub("_","-"))
-      if id != (generate_id title)
-        append_line %([[#{id}]])
-      end
+    if (id = normalize_id (node.attr 'id')) && id != (generate_id title)
+      append_line %([[#{id}]])
     end
-    append_line %(#{'=' * @level} #{title.gsub(/\n[[:blank:]\t]*/, ' ')})
+    append_line %(#{'=' * @level} #{unwrap_text title})
+    yield if block_given?
     @level += 1
     proceed node, :using_elements => true
     @level -= 1
@@ -409,6 +437,7 @@ class DocBookVisitor
   def generate_id title
     sep = @idseparator
     pre = @idprefix
+    # FIXME move regexp to constant
     illegal_sectid_chars = /&(?:[[:alpha:]]+|#[[:digit:]]+|#x[[:alnum:]]+);|\W+?/
     id = %(#{pre}#{title.downcase.gsub(illegal_sectid_chars, sep).tr_s(sep, sep).chomp(sep)})
     if pre.empty? && id.start_with?(sep)
@@ -416,6 +445,18 @@ class DocBookVisitor
       id = id[1..-1] while id.start_with?(sep)
     end
     id
+  end
+
+  # Lowercase id and replace underscores or hyphens with the @idseparator
+  # TODO ensure id adheres to @idprefix
+  def normalize_id id
+    if id
+      normalized_id = id.downcase.tr('_-', @idseparator)
+      normalized_id = %(#{@idprefix}#{normalized_id}) if @idprefix && !(normalized_id.start_with? @idprefix)
+      normalized_id
+    else
+      nil
+    end
   end
 
   ### Block node visitors
@@ -440,20 +481,27 @@ class DocBookVisitor
     true
   end
 
-  def process_admonition node, name
+  def process_admonition node
+    name = node.name
+    label = name.upcase
     elements = node.elements
     append_blank_line
     append_block_title node
-    append_line %([#{name.upcase}])
-    append_line '===='
-    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
-      append_line %(#{format_text child})
+    if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
+      if @runin_admonition_label
+        append_line %(#{label}: #{format_text child})
+      else
+        append_line %([#{label}])
+        append_line (format_text child)
+      end
     else
+      append_line %([#{label}])
+      append_line '===='
       @adjoin_next = true
       proceed node
       @adjoin_next = false
+      append_line '===='
     end
-    append_line '===='
     false
   end
 
@@ -464,8 +512,8 @@ class DocBookVisitor
   end
 
   def visit_procedure node
-    append_line %(.Procedure: #{node.at_css('title').text})
     append_blank_line
+    append_block_title node, 'Procedure: '
     visit_orderedlist node
   end
 
@@ -480,8 +528,8 @@ class DocBookVisitor
  def visit_orderedlist node
     @list_index = 1
     append_blank_line
-    numeration = node.attr('numeration')
-    if (numeration && numeration != 'arabic')
+    # TODO no title?
+    if (numeration = (node.attr 'numeration')) && numeration != 'arabic'
       append_line %([#{numeration}])
     end
     true
@@ -490,6 +538,7 @@ class DocBookVisitor
   def visit_variablelist node
     append_blank_line
     append_block_title node
+    @lines.pop if @lines[-1].empty?
     true
   end
 
@@ -497,6 +546,7 @@ class DocBookVisitor
     visit_listitem node
   end
 
+  # FIXME this method needs cleanup, remove hardcoded logic!
   def visit_listitem node
     elements = node.elements.to_a
     item_text = format_text elements.shift
@@ -508,15 +558,15 @@ class DocBookVisitor
 
     marker = (node.parent.name == 'orderedlist' || node.parent.name == 'procedure' ? '.' * depth : 
       (node.parent.name == 'stepalternatives' ? 'a.' : '*' * depth))
-    didbullet=false
-    item_text.split("\n").each_with_index do |line, i|
-      line = line.gsub("^[[:blank:]\t]*","")
+    placed_bullet = false
+    item_text.split(EOL).each_with_index do |line, i|
+      line = line.gsub IndentationRx, ''
       if line.length > 0
-        if (line == "====")
+        if line == '====' # ???
           append_line %(#{line})
-        elsif (!didbullet)
+        elsif !placed_bullet
           append_line %(#{marker} #{line})
-          didbullet=true
+          placed_bullet = true
         else
           append_line %(  #{line})
         end
@@ -537,16 +587,18 @@ class DocBookVisitor
   end
 
   def visit_varlistentry node
+    # FIXME adds an extra blank line before first item
     append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
-    append_line %(#{format_text(node.at_css node, '> term')};;)
+    append_line %(#{format_text(node.at_css node, '> term')}::)
     item_text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
     if item_text
-      item_text.split("\n").each do |line|
+      item_text.split(EOL).each do |line|
         append_line %(  #{line})
       end
     end
 
     # support listitem figures in a listentry
+    # FIXME we should be supporting arbitrary complex content!
     if node.at_css('listitem figure')
       # warn %(#{node.at_css('listitem figure')})
       visit_figure node.at_css('listitem figure')
@@ -593,7 +645,7 @@ class DocBookVisitor
 
   def visit_literallayout node
     append_blank_line
-    source_lines = node.text.rstrip.split("\n")
+    source_lines = node.text.rstrip.split EOL
     if (source_lines.detect{|line| line.rstrip.empty?})
       append_line '....'
       append_line node.text.rstrip
@@ -608,7 +660,7 @@ class DocBookVisitor
 
   def visit_screen node
     append_blank_line unless node.parent.name == 'para'
-    source_lines = node.text.rstrip.split("\n")
+    source_lines = node.text.rstrip.split EOL
     if source_lines.detect {|line| line.match(/^-{4,}/) }
       append_line '[listing]'
       append_line '....'
@@ -628,13 +680,13 @@ class DocBookVisitor
     linenums = node.attr('linenumbering') == 'numbered'
     append_blank_line unless node.parent.name == 'para'
     append_line %([source#{language}#{linenums ? ',linenums' : nil}])
-    source_lines = node.text.rstrip.split("\n")
+    source_lines = node.text.rstrip.split EOL
     if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
       append_line '----'
-      append_line (source_lines * "\n")
+      append_line (source_lines * EOL)
       append_line '----'
     else
-      append_line (source_lines * "\n")
+      append_line (source_lines * EOL)
     end
     false
   end
@@ -642,14 +694,16 @@ class DocBookVisitor
   # FIXME wrap this up in a process_block method
   def visit_example node
     append_blank_line
-    append_block_title node 
+    append_block_title node
     elements = node.elements.to_a
     if elements.size > 0 && elements.first.name == 'title'
       elements.shift
     end
-    if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
+    if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
       append_line '[example]'
-      append_line format_text child
+      # must reset adjoin_next in case block title is placed
+      @adjoin_next = false
+      append_line (format_text child)
     else
       append_line '===='
       @adjoin_next = true
@@ -781,15 +835,19 @@ class DocBookVisitor
 
   def visit_text node
     in_para = PARA_TAG_NAMES.include?(node.parent.name) || node.parent.name == 'phrase'
+    is_first = !node.previous_element
     # drop text if empty unless we're processing a paragraph
     unless node.text.rstrip.empty? && !in_para
       text = node.text
       if in_para
-        # strip leading indent for normal paragraph
-        # TODO may want to factor out this whitespace processing
-        text = text.gsub(/\n[[:blank:]\t]*/, @preserve_line_wrap ? "\n" : ' ')
+        # strips surrounding endlines and indentation on normal paragraphs
+        # TODO factor out this whitespace processing
+        # FIXME this can still collapse space between elements in some cases (e.g., text on newline after inline image)
+        text = text.gsub(LeadingEndlinesRx, '').gsub(WrappedIndentRx, @preserve_line_wrap ? EOL : ' ').gsub(TrailingEndlinesRx, '')
+        text = text.gsub(FirstLineIndentRx, '') if is_first
         if @sentence_per_line
-          text = text.gsub(/(^|[^A-Z])\. /, "\\1.\n")
+          # FIXME move regexp to constant
+          text = text.gsub(/(?:^|\b)\.[[:blank:]]+(?!\Z)/, %(.\n))
         end
       end
       append_text text, true
@@ -798,19 +856,18 @@ class DocBookVisitor
   end
 
   def visit_anchor node
-    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
-    id = node.attr('id').downcase.gsub("_","-")
+    return false if node.parent.name.start_with? 'biblio'
+    id = normalize_id (node.attr 'id')
     append_text %([[#{id}]])
     false
   end
 
+  # NOTE same as visit_xref, except element text is used as label
   def visit_link node
-    linkend = node.attr('linkend')
+    linkend = node.attr 'linkend'
     label = format_text node
-    if label.include? ','
-      label = %("#{label}")
-    end
-    append_text %(<<#{linkend},#{label}>>)
+    id = normalize_id linkend
+    append_text %(<<#{id},#{lazy_quote label}>>)
     false
   end
 
@@ -821,33 +878,31 @@ class DocBookVisitor
       prefix = nil
     end
     label = text node
-    if url != label
-      if (ref = @attributes.key(url))
-        url = %({#{ref}})
-      end
-      append_text %(#{prefix}#{url}[#{label}])
-    else
+    if label.empty? || url == label
       if (ref = @attributes.key(url))
         url = %({#{ref}})
       end
       append_text %(#{prefix}#{url})
+    else
+      if (ref = @attributes.key(url))
+        url = %({#{ref}})
+      end
+      append_text %(#{prefix}#{url}[#{label}])
     end
     false
   end
 
   def visit_xref node
-    linkend = node.attr('linkend')
-    label = linkend.gsub("_"," ")
-    # anchor links should be lower-case-with-dashes, not Title_Case_With_Underscores
-    linkend = linkend.downcase.gsub("_","-")
-    append_text %(<<#{linkend},#{label}>>)
+    linkend = node.attr 'linkend'
+    label = linkend.gsub '_', ' '
+    id = normalize_id linkend
+    append_text %(<<#{id},#{lazy_quote label}>>)
     false
   end
 
   def visit_phrase node
-    # FIXME for now, double up the marks to be sure we catch it
-    #append_text %([#{node.attr 'role'}]##{format_text node}#)
     if node.attr 'role'
+      # FIXME for now, double up the marks to be sure we catch it
       append_text %([#{node.attr 'role'}]###{format_text node}##)
     else
       append_text %(#{format_text node})
@@ -869,8 +924,51 @@ class DocBookVisitor
     process_literal node
   end
 
-  def process_literal node, name = nil
-    unless name.nil?
+  def process_path node
+    role = case (name = node.name)
+    when 'filename'
+      'path'
+    when 'directory'
+      'path'
+    else
+      name
+    end
+    append_text %([#{role}]_#{node.text}_)
+    false
+  end
+
+  def process_ui node
+    name = node.name
+    if name == 'guilabel' && (next_node = node.next) &&
+        next_node.type == ENTITY_REF_NODE && ['rarr', 'gt'].include?(next_node.name)
+      name = 'guimenu'
+    end
+
+    case name
+    when 'guimenu'
+      append_text %(menu:#{node.text})
+      items = []
+      while (node = node.next) && ((node.type == ENTITY_REF_NODE && ['rarr', 'gt'].include?(node.name)) ||
+        (node.type == ELEMENT_NODE && ['guimenu', 'guilabel'].include?(node.name)))
+        if node.type == ELEMENT_NODE
+          items << node.text
+        end
+        node.instance_variable_set :@skip, true
+      end
+      append_text %([#{items * ' > '}]) 
+    when 'guibutton'
+      append_text %(btn:[#{node.text}])
+    when 'guilabel'
+      append_text %([label]##{node.text}#)
+    when 'keycap'
+      append_text %(kbd:[#{node.text}])
+    end
+    false
+  end
+
+  def process_literal node
+    name = node.name
+    unless LITERAL_UNNAMED.include? name
       shortname = name.sub('name', '')
       append_text %([#{shortname}])
     end
@@ -879,10 +977,15 @@ class DocBookVisitor
       append_text '+`+'
     # FIXME be smarter about when to use + vs `
     # FIXME know when to use ++
-    elsif node_text.include? '`'
-      append_text %(+#{node_text}+)
-    else
+    #elsif node_text.include? '`'
+    #  append_text %(+#{node_text}+)
+    #else
+    #  append_text %(`#{node_text}`)
+    #end
+    elsif node_text.include? '+'
       append_text %(`#{node_text}`)
+    else
+      append_text %(+#{node_text}+)
     end
     false 
   end
@@ -891,10 +994,8 @@ class DocBookVisitor
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
     generated_alt = File.basename(src)[0...-(File.extname(src).length)]
-    if alt == generated_alt
-      alt = nil
-    end
-    append_text %(image:#{src}["#{alt}"])
+    alt = nil if alt && alt == generated_alt
+    append_text %(image:#{src}[#{lazy_quote alt}])
     false
   end
 
@@ -908,22 +1009,18 @@ class DocBookVisitor
     append_block_title node
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
-    #title = node.at_css('title').text
 
     generated_alt = File.basename(src)[0...-(File.extname(src).length)]
-    if alt == generated_alt
-      alt = nil
-    end
-    #append_line %(.#{title})
+    alt = nil if alt && alt == generated_alt
     append_blank_line
-    append_line %(image::#{src}["#{alt}"])
+    append_line %(image::#{src}[#{lazy_quote alt}])
     false
   end
 
   def visit_footnote node
     append_text %(footnote:[#{text_at_css node, '> para', '> simpara'}])
     # FIXME not sure a blank line is always appropriate
-    append_blank_line
+    #append_blank_line
     false
   end
 
@@ -935,24 +1032,24 @@ class DocBookVisitor
         @skip[:indexterm] -= 1
         return false
       else
-        @skip.delete(:indexterm)
+        @skip.delete :indexterm
         previous_skipped = true
       end
     end
 
     @requires_index = true
     entries = [(text_at_css node, 'primary'), (text_at_css node, 'secondary'), (text_at_css node, 'tertiary')].compact
-    if previous_skipped && (previous = node.previous_element) && previous.name == 'indexterm'
-      append_blank_line
-    end
+    #if previous_skipped && (previous = node.previous_element) && previous.name == 'indexterm'
+    #  append_blank_line
+    #end
     @skip[:indexterm] = entries.size - 1 if entries.size > 1
-    append_text %|(((#{entries * ','})))|
+    append_line %[(((#{entries * ','})))]
     # Only if next word matches the index term do we use double-bracket form
     #if entries.size == 1
-    #  append_text %|((#{entries.first}))|
+    #  append_text %[((#{entries.first}))]
     #else
     #  @skip[:indexterm] = entries.size - 1
-    #  append_text %|(((#{entries * ','})))|
+    #  append_text %[(((#{entries * ','})))]
     #end
     false
   end
@@ -968,15 +1065,30 @@ class DocBookVisitor
     false
   end
 
+  def lazy_quote text, seek = ','
+    if text && (text.include? seek)
+      %("#{text}")
+    else
+      text
+    end
+  end
+
+  def unwrap_text text
+    text.gsub WrappedIndentRx, ''
+  end
+
 end
 
 doc = Nokogiri::XML::Document.parse(docbook)
 
 options = {
-#  :idprefix => '',
-#  :idseparator => '-',
-#  :em_char => '\'',
-#  :attributes => {
+#  runin_admonition_label: false,
+#  sentence_per_line: false,
+#  preserve_line_wrap: true,
+#  idprefix: '',
+#  idseparator: '-'
+#  em_char: '\'',
+#  attributes: {
 #    'ref-contribute' => 'http://beanvalidation.org/contribute/',
 #    'ref-jsr-317' => 'http://jcp.org/en/jsr/detail?id=317'
 #  }
