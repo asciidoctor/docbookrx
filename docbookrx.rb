@@ -18,6 +18,7 @@ class DocBookVisitor
   end
 
   IndentationRx = /^[[:blank:]]+/
+  LeadingSpaceRx = /\A\s/
   LeadingEndlinesRx = /\A\n+/
   TrailingEndlinesRx = /\n+\z/
   FirstLineIndentRx = /\A[[:blank:]]*/
@@ -840,11 +841,20 @@ class DocBookVisitor
     unless node.text.rstrip.empty? && !in_para
       text = node.text
       if in_para
+        leading_space_match = text.match LeadingSpaceRx
         # strips surrounding endlines and indentation on normal paragraphs
         # TODO factor out this whitespace processing
-        # FIXME this can still collapse space between elements in some cases (e.g., text on newline after inline image)
-        text = text.gsub(LeadingEndlinesRx, '').gsub(WrappedIndentRx, @preserve_line_wrap ? EOL : ' ').gsub(TrailingEndlinesRx, '')
-        text = text.gsub(FirstLineIndentRx, '') if is_first
+        text = text.gsub(LeadingEndlinesRx, '')
+            .gsub(WrappedIndentRx, @preserve_line_wrap ? EOL : ' ')
+            .gsub(TrailingEndlinesRx, '')
+        if is_first
+          text = text.lstrip
+        elsif leading_space_match && !!(text !~ LeadingSpaceRx)
+          # QUESTION if leading space was an endline, should we restore the endline or just put a space char?
+          text = %(#{leading_space_match[0]}#{text})
+        end
+
+        # FIXME sentence-per-line logic should be applied at paragraph block level only
         if @sentence_per_line
           # FIXME move regexp to constant
           text = text.gsub(/(?:^|\b)\.[[:blank:]]+(?!\Z)/, %(.\n))
