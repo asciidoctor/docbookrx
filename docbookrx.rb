@@ -293,17 +293,15 @@ class DocBookVisitor
     process_doc node
   end
 
-  def visit_bookinfo node
-    process_info node
-  end
-
   def visit_article node
     process_doc node
   end
 
-  def visit_articleinfo node
+  def visit_info node
     process_info node
   end
+  alias :visit_bookinfo :visit_info
+  alias :visit_articleinfo :visit_info
 
   def visit_chapter node
     # treat document with <chapter> root element as books
@@ -322,7 +320,7 @@ class DocBookVisitor
         end
       end
     else
-      default_visit node
+      process_section node
     end
   end
 
@@ -336,14 +334,20 @@ class DocBookVisitor
   def process_info node
     title = text_at_css node, '> title'
     append_line %(= #{title})
-    author_line = nil
-    if (author_node = (node.at_css 'author'))
-      author_line = [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
-      if (email_node = author_node.at_css('email'))
-        author_line = %(#{author_line} <#{text email_node}>)
+    authors = []
+    (node.css 'author').each do |author_node|
+      # FIXME need to detect DocBook 4.5 vs 5.0 to handle names properly
+      author = if (personname_node = (author_node.at_css 'personname'))
+        text personname_node
+      else
+        [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
       end
+      if (email_node = (author_node.at_css 'email'))
+        author = %(#{author} <#{text email_node}>)
+      end
+      authors << author unless author.empty?
     end
-    append_line author_line if author_line
+    append_line (authors * '; ') unless authors.empty?
     date_line = nil
     if (revnumber_node = node.at_css('revhistory revnumber', 'releaseinfo'))
       date_line = %(v#{revnumber_node.text}, ) 
@@ -1034,6 +1038,7 @@ class DocBookVisitor
     false
   end
 
+  # FIXME blank lines showing up between adjacent index terms
   def visit_indexterm node
     previous_skipped = false
     if @skip.has_key? :indexterm
