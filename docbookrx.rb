@@ -75,6 +75,7 @@ class DocBookVisitor
     @adjoin_next = false
     @idprefix = opts[:idprefix] || '_'
     @idseparator = opts[:idseparator] || '_'
+    @normalize_ids = opts.fetch :normalize_ids, true
     @em_char = opts[:em_char] || '_'
     @attributes = opts[:attributes] || {}
     @runin_admonition_label = opts.fetch :runin_admonition_label, true
@@ -405,7 +406,7 @@ class DocBookVisitor
     append_blank_line
     append_line '[float]'
     title = format_text node
-    if (id = normalize_id (node.attr 'id')) && id != (generate_id title)
+    if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
     end
     append_line %(#{'=' * level} #{unwrap_text title})
@@ -424,7 +425,7 @@ class DocBookVisitor
       append_line %([#{special}])
     end
     title = format_text_at_css node, '> title'
-    if (id = normalize_id (node.attr 'id')) && id != (generate_id title)
+    if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
     end
     append_line %(#{'=' * @level} #{unwrap_text title})
@@ -450,6 +451,14 @@ class DocBookVisitor
       id = id[1..-1] while id.start_with?(sep)
     end
     id
+  end
+
+  def resolve_id node, opts = {}
+    if (id = node['id'] || node['xml:id'])
+      opts[:normalize] ? (normalize_id id) : id
+    else
+      nil
+    end
   end
 
   # Lowercase id and replace underscores or hyphens with the @idseparator
@@ -871,7 +880,7 @@ class DocBookVisitor
 
   def visit_anchor node
     return false if node.parent.name.start_with? 'biblio'
-    id = normalize_id (node.attr 'id')
+    id = resolve_id node, normalize: @normalize_ids
     append_text %([[#{id}]])
     false
   end
@@ -880,7 +889,7 @@ class DocBookVisitor
   def visit_link node
     linkend = node.attr 'linkend'
     label = format_text node
-    id = normalize_id linkend
+    id = @normalize_ids ? (normalize_id linkend) : linkend
     append_text %(<<#{id},#{lazy_quote label}>>)
     false
   end
@@ -908,8 +917,9 @@ class DocBookVisitor
 
   def visit_xref node
     linkend = node.attr 'linkend'
+    # FIXME delegate label formatting to a method
     label = linkend.gsub '_', ' '
-    id = normalize_id linkend
+    id = @normalize_ids ? (normalize_id linkend) : linkend
     append_text %(<<#{id},#{lazy_quote label}>>)
     false
   end
@@ -1101,7 +1111,8 @@ options = {
 #  sentence_per_line: false,
 #  preserve_line_wrap: true,
 #  idprefix: '',
-#  idseparator: '-'
+#  idseparator: '-',
+#  normalize_ids: false,
 #  em_char: '\'',
 #  attributes: {
 #    'ref-contribute' => 'http://beanvalidation.org/contribute/',
