@@ -424,7 +424,12 @@ class DocBookVisitor
       append_blank_line
       append_line %([#{special}])
     end
-    title = format_text_at_css node, '> title'
+    title = if (title_node = (node.at_css '> title') || (node.at_css '> info > title'))
+      format_text title_node
+    else
+      warn %(No title found for section node: #{node})
+      'Unknown Title!'
+    end
     if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
     end
