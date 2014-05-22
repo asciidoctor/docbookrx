@@ -401,6 +401,10 @@ class DocBookVisitor
     process_section node
   end
 
+  def visit_simplesect node
+    process_section node
+  end
+
   def visit_bridgehead node
     level = node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
