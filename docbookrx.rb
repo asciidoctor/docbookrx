@@ -53,7 +53,7 @@ class DocBookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
-  SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'glossary', 'bibliography']
+  SPECIAL_SECTION_NAMES = ['abstract', 'preface', 'appendix', 'glossary', 'bibliography']
 
   LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'application', 'command']
 
