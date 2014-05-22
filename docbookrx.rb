@@ -956,6 +956,11 @@ class DocBookVisitor
     false
   end
 
+  def visit_trademark node
+    append_text %(#{format_text node}(TM))
+    false
+  end
+
   def visit_literal node
     process_literal node
   end
