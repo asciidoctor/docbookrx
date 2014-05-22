@@ -385,7 +385,7 @@ class DocBookVisitor
       result.shift while result.size > 0 && result.first.empty?
       File.open(include_outfile, 'w') {|f| f.write(visitor.lines * EOL) }
     else
-      warn %(Include file not readable: #{href})
+      warn %(Include file not readable: #{include_infile})
     end
     append_blank_line
     # TODO make leveloffset more context-aware
