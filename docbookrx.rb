@@ -714,8 +714,15 @@ class DocBookVisitor
     false
   end
 
-  # FIXME wrap this up in a process_block method
   def visit_example node
+    process_example node
+  end
+
+  def visit_informalexample node
+    process_example node
+  end
+
+  def process_example node
     append_blank_line
     append_block_title node
     elements = node.elements.to_a
