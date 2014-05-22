@@ -55,7 +55,7 @@ class DocBookVisitor
 
   SPECIAL_SECTION_NAMES = ['abstract', 'preface', 'appendix', 'glossary', 'bibliography']
 
-  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'application', 'command']
+  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'application', 'command', 'envar', 'varname']
 
   LITERAL_UNNAMED = ['application', 'command']
 
