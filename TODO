@@ -6,6 +6,7 @@
 - make level shifting configurable or auto-detectable?
 - fix extra line above variable list
 - variablelist children
+- handle preface correctly
 - table width
 - table col widths
 - inline formatting in table cell content

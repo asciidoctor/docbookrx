@@ -53,9 +53,9 @@ class DocBookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
-  SPECIAL_SECTION_NAMES = ['abstract', 'preface', 'appendix', 'glossary', 'bibliography']
+  SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'bibliography', 'glossary', 'preface']
 
-  LITERAL_NAMES = ['interfacename', 'classname', 'methodname', 'constant', 'application', 'command', 'envar', 'varname']
+  LITERAL_NAMES = ['application', 'classname', 'command', 'constant', 'envar', 'interfacename', 'methodname', 'varname']
 
   LITERAL_UNNAMED = ['application', 'command']
 
@@ -1014,7 +1014,7 @@ class DocBookVisitor
   def process_literal node
     name = node.name
     unless LITERAL_UNNAMED.include? name
-      shortname = name.sub('name', '')
+      shortname = (name == 'envar' ? 'var' : (name.sub 'name', ''))
       append_text %([#{shortname}])
     end
     node_text = node.text
