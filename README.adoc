@@ -1,7 +1,8 @@
 = DocBook Rx
 Dan Allen
 
-Just the Rx you need to fix your DocBook problem!
+The prescription (℞) you need to get rid of your DocBook problem.
+Extracts AsciiDoc from the XML hell of DocBook.
 
 The docbookrx.rb script is the beginnings of a DocBook to http://asciidoc.org[AsciiDoc] converter written in Ruby.
 This script is far from perfect at the moment and some of the conversion is done hastily.
