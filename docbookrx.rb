@@ -703,13 +703,13 @@ class DocBookVisitor
   end
 
   def visit_programlisting node
-    language = node.attr('language') || node.attr('role') || @attributes['language']
+    language = node.attr('language') || node.attr('role') || @attributes['source-language']
     language = %(,#{language.downcase}) if language
     linenums = node.attr('linenumbering') == 'numbered'
     append_blank_line unless node.parent.name == 'para'
     append_line %([source#{language}#{linenums ? ',linenums' : nil}])
     source_lines = node.text.rstrip.split EOL
-    elements = node.elements.to_a
+    elements = node.elements
     if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
       append_line '----'
       if elements.size == 1 && elements.first.attr('href')
