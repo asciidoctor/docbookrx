@@ -918,8 +918,13 @@ class DocBookVisitor
     false
   end
 
-  def visit_ulink node
-    url = node.attr('url')
+  def visit_uri node
+    url = if node.name == 'ulink'
+      node.attr 'url'
+    else
+      xlink_ns = node.namespaces.find {|(k,v)| v == 'http://www.w3.org/1999/xlink' }.first.split(':', 2).last
+      node.attr %(#{xlink_ns}:href)
+    end
     prefix = 'link:'
     if url.start_with?('http://') || url.start_with?('https://')
       prefix = nil
@@ -938,6 +943,9 @@ class DocBookVisitor
     end
     false
   end
+
+  alias :visit_link :visit_uri
+  alias :visit_ulink :visit_uri
 
   def visit_xref node
     linkend = node.attr 'linkend'
