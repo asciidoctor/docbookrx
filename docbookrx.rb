@@ -63,7 +63,7 @@ class DocBookVisitor
 
   PATH_NAMES = ['directory', 'filename']
 
-  UI_NAMES = ['guibutton', 'guimenu', 'guilabel', 'keycap']
+  UI_NAMES = ['guibutton', 'guilabel', 'menuchoice', 'guimenu', 'keycap']
 
   attr_reader :lines
 
@@ -997,17 +997,28 @@ class DocBookVisitor
     end
 
     case name
-    when 'guimenu'
-      append_text %(menu:#{node.text})
-      items = []
-      while (node = node.next) && ((node.type == ENTITY_REF_NODE && ['rarr', 'gt'].include?(node.name)) ||
-        (node.type == ELEMENT_NODE && ['guimenu', 'guilabel'].include?(node.name)))
-        if node.type == ELEMENT_NODE
-          items << node.text
+    # ex. <menuchoice><guimenu>System</guimenu><guisubmenu>Documentation</guisubmenu></menuchoice>
+    when 'menuchoice'
+      items = node.children.map {|node|
+        if (node.type == ELEMENT_NODE) && ['guimenu', 'guisubmenu', 'guimenuitem'].include?(node.name)
+          node.instance_variable_set :@skip, true
+          node.text
         end
-        node.instance_variable_set :@skip, true
-      end
-      append_text %([#{items * ' > '}]) 
+      }.compact
+      append_text %(menu:#{items[0]}[#{items[1..-1] * ' > '}])
+    # ex. <guimenu>Files</guimenu> (top-level)
+    when 'guimenu'
+      append_text %(menu:#{node.text}[])
+      # QUESTION when is this needed??
+      #items = []
+      #while (node = node.next) && ((node.type == ENTITY_REF_NODE && ['rarr', 'gt'].include?(node.name)) ||
+      #  (node.type == ELEMENT_NODE && ['guimenu', 'guilabel'].include?(node.name)))
+      #  if node.type == ELEMENT_NODE
+      #    items << node.text
+      #  end
+      #  node.instance_variable_set :@skip, true
+      #end
+      #append_text %([#{items * ' > '}]) 
     when 'guibutton'
       append_text %(btn:[#{node.text}])
     when 'guilabel'
