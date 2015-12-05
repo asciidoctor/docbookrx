@@ -310,7 +310,7 @@ class DocBookVisitor
       @adjoin_next = true
       process_section node do
         append_line ':doctype: book'
-        append_line ':numbered:'
+        append_line ':sectnums:'
         append_line ':toc: left'
         append_line ':icons: font'
         append_line ':experimental:'
