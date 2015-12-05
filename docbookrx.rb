@@ -701,15 +701,21 @@ class DocBookVisitor
   end
 
   def visit_programlisting node
-    language = node.attr('language') || @attributes['language']
+    language = node.attr('language') || node.attr('role') || @attributes['language']
     language = %(,#{language.downcase}) if language
     linenums = node.attr('linenumbering') == 'numbered'
     append_blank_line unless node.parent.name == 'para'
     append_line %([source#{language}#{linenums ? ',linenums' : nil}])
     source_lines = node.text.rstrip.split EOL
+    elements = node.elements.to_a
     if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
       append_line '----'
-      append_line (source_lines * EOL)
+      if elements.size == 1 && elements.first.attr('href')
+        src_file = elements.first.attr('href')       
+        append_line %(include::{sourcedir}/#{src_file}[])
+      else   
+        append_line (source_lines * EOL)
+      end   
       append_line '----'
     else
       append_line (source_lines * EOL)
