@@ -316,6 +316,7 @@ class DocBookVisitor
         append_line ':experimental:'
         append_line %(:idprefix: #{@idprefix}).rstrip unless @idprefix == '_'
         append_line %(:idseparator: #{@idseparator}).rstrip unless @idseparator == '_'
+        append_line %(:sourcedir: .) unless @attributes.key? 'sourcedir'
         @attributes.each do |name, val|
           append_line %(:#{name}: #{val}).rstrip
         end
