@@ -29,12 +29,12 @@ class DocBookVisitor
   ENTITY_TABLE = {
      169 => '(C)',
      174 => '(R)',
-    8201 => ' ',
+    8201 => ' ', # thin space
     8212 => '--',
-    8216 => '`',
-    8217 => '\'',
-    8220 => '``',
-    8221 => '\'\'',
+    8216 => '\'`',
+    8217 => '`\'',
+    8220 => '"`',
+    8221 => '`"',
     8230 => '...',
     8482 => '(TM)',
     8592 => '<-',
@@ -1029,20 +1029,8 @@ class DocBookVisitor
       append_text %([#{shortname}])
     end
     node_text = node.text
-    if node_text == '`'
-      append_text '+`+'
-    # FIXME be smarter about when to use + vs `
-    # FIXME know when to use ++
-    #elsif node_text.include? '`'
-    #  append_text %(+#{node_text}+)
-    #else
-    #  append_text %(`#{node_text}`)
-    #end
-    elsif node_text.include? '+'
-      append_text %(`#{node_text}`)
-    else
-      append_text %(+#{node_text}+)
-    end
+    # FIXME be smart about when to use ` vs `` or `+...+`
+    append_text %(`#{node_text}`)
     false 
   end
 
