@@ -279,14 +279,14 @@ class DocBookVisitor
     false
   end
 
-  # Skip title as it's always handled by the parent visitor
-  def visit_title node
+  def ignore node
     false
   end
+  # Skip title and subtitle as they're always handled by the parent visitor
+  alias :visit_title :ignore
+  alias :visit_subtitle :ignore
 
-  def visit_toc node
-    false
-  end
+  alias :visit_toc :ignore
 
   ### Document node (article | book | chapter) & header node (articleinfo | bookinfo | info) visitors
 
@@ -429,6 +429,9 @@ class DocBookVisitor
       append_line %([#{special}])
     end
     title = if (title_node = (node.at_css '> title') || (node.at_css '> info > title'))
+      if (subtitle_node = (node.at_css '> subtitle') || (node.at_css '> info > subtitle'))
+        title_node.inner_html += %(: #{subtitle_node.inner_html})
+      end
       format_text title_node
     else
       warn %(No title found for section node: #{node})
