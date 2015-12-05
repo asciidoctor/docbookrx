@@ -59,9 +59,15 @@ class DocBookVisitor
 
   SECTION_NAMES = ['article', 'book', 'chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
-  LITERAL_UNNAMED = ['application', 'command']
+  ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'literal', 'tag']
 
-  PATH_NAMES = ['directory', 'filename']
+  NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'interfacename', 'methodname', 'option', 'parameter', 'replaceable', 'varname']
+
+  LITERAL_NAMES = ANONYMOUS_LITERAL_NAMES + NAMED_LITERAL_NAMES
+
+  KEYWORD_NAMES = ['package', 'firstterm', 'citetitle']
+
+  PATH_NAMES = ['directory', 'filename', 'systemitem']
 
   UI_NAMES = ['guibutton', 'guilabel', 'menuchoice', 'guimenu', 'keycap']
 
@@ -110,6 +116,8 @@ class DocBookVisitor
         :process_admonition
       elsif LITERAL_NAMES.include? name
         :process_literal
+      elsif KEYWORD_NAMES.include? name
+        :process_keyword
       elsif PATH_NAMES.include? name
         :process_path
       elsif UI_NAMES.include? name
@@ -977,23 +985,22 @@ class DocBookVisitor
     false
   end
 
-  def visit_literal node
-    process_literal node
-  end
-
-  def visit_code node
-    process_literal node
+  def visit_prompt node
+    # TODO remove the space left by the prompt
+    #@lines.last.chop!
+    false
   end
 
   def process_path node
-    role = case (name = node.name)
-    when 'filename'
-      'path'
-    when 'directory'
-      'path'
-    else
-      name
-    end
+    role = 'path'
+    #role = case (name = node.name)
+    #when 'directory'
+    #  'path'
+    #when 'filename'
+    #  'path'
+    #else
+    #  name
+    #end
     append_text %([#{role}]_#{node.text}_)
     false
   end
@@ -1038,15 +1045,40 @@ class DocBookVisitor
     false
   end
 
+  def process_keyword node
+    role, char = case (name = node.name)
+    when 'firstterm'
+      ['term', '_']
+    when 'citetitle'
+      ['ref', '_']
+    else
+      [name, '#']
+    end
+    append_text %([#{role}]#{char}#{node.text}#{char})
+    false
+  end
+
   def process_literal node
     name = node.name
-    unless LITERAL_UNNAMED.include? name
-      shortname = (name == 'envar' ? 'var' : (name.sub 'name', ''))
+    unless ANONYMOUS_LITERAL_NAMES.include? name
+      shortname = case name
+      when 'envar'
+        'var'
+      when 'application'
+        'app'
+      else
+        name.sub 'name', ''
+      end
       append_text %([#{shortname}])
     end
     node_text = node.text
-    # FIXME be smart about when to use ` vs `` or `+...+`
-    append_text %(`#{node_text}`)
+    if ((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}$/ =~ prev_node.text) ||
+      ((next_node = node.next) && next_node.type == TEXT_NODE && /^\p{Word}/ =~ next_node.text)
+      append_text %(``#{node_text}``)
+    else
+      # FIXME be smart about when to use ` vs `` or `+...+`
+      append_text %(`#{node_text}`)
+    end
     false 
   end
 
