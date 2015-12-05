@@ -1058,13 +1058,16 @@ class DocBookVisitor
   def visit_figure node
     append_blank_line
     append_block_title node
-    src = node.at_css('imageobject imagedata').attr('fileref')
-    alt = text_at_css node, 'textobject phrase'
-
-    generated_alt = File.basename(src)[0...-(File.extname(src).length)]
-    alt = nil if alt && alt == generated_alt
-    append_blank_line
-    append_line %(image::#{src}[#{lazy_quote alt}])
+    if (image_node = node.at_css('imageobject imagedata'))
+      src = image_node.attr('fileref')
+      alt = text_at_css node, 'textobject phrase'
+      generated_alt = File.basename(src)[0...-(File.extname(src).length)]
+      alt = nil if alt && alt == generated_alt
+      append_blank_line
+      append_line %(image::#{src}[#{lazy_quote alt}])
+    else
+      warn %(Unknown mediaobject <#{node.elements.first.name}>! Skipping.)
+    end
     false
   end
 
