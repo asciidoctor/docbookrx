@@ -359,7 +359,7 @@ class DocBookVisitor
     end
     if node.name == 'bookinfo' || node.parent.name == 'book' || node.parent.name == 'chapter'
       append_line ':doctype: book'
-      append_line ':numbered:'
+      append_line ':sectnums:'
       append_line ':toc: left'
       append_line ':icons: font'
       append_line ':experimental:'
@@ -425,7 +425,7 @@ class DocBookVisitor
   def process_section node, special = nil
     append_blank_line
     if special
-      append_line ':numbered!:'
+      append_line ':sectnums!:'
       append_blank_line
       append_line %([#{special}])
     end
@@ -448,7 +448,7 @@ class DocBookVisitor
     @level -= 1
     if special
       append_blank_line
-      append_line ':numbered:'
+      append_line ':sectnums:'
     end
     false
   end
