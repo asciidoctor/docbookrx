@@ -53,6 +53,8 @@ class DocBookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
+  NORMAL_SECTION_NAMES = ['section', 'simplesect', 'sect1', 'sect2', 'sect3', 'sect4', 'sect5']
+
   SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'bibliography', 'glossary', 'preface']
 
   LITERAL_NAMES = ['application', 'classname', 'command', 'constant', 'envar', 'interfacename', 'methodname', 'varname']
@@ -112,6 +114,8 @@ class DocBookVisitor
         :process_path
       elsif UI_NAMES.include? name
         :process_ui
+      elsif NORMAL_SECTION_NAMES.include? name
+        :process_section
       elsif SPECIAL_SECTION_NAMES.include? name
         :process_special_section
       else
@@ -396,15 +400,7 @@ class DocBookVisitor
     false
   end
 
-  ### Section node (part | section | chapter | %special%) visitors
-
-  def visit_section node
-    process_section node
-  end
-
-  def visit_simplesect node
-    process_section node
-  end
+  ### Section node visitors
 
   def visit_bridgehead node
     level = node.attr('renderas').sub('sect', '').to_i + 1
