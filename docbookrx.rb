@@ -57,7 +57,7 @@ class DocBookVisitor
 
   SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'bibliography', 'glossary', 'preface']
 
-  LITERAL_NAMES = ['application', 'classname', 'command', 'constant', 'envar', 'interfacename', 'methodname', 'varname']
+  SECTION_NAMES = ['article', 'book', 'chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
   LITERAL_UNNAMED = ['application', 'command']
 
@@ -224,7 +224,8 @@ class DocBookVisitor
   alias :start_new_line :append_blank_line
 
   def append_block_title node, prefix = nil
-    if (title = (format_text_at_css node, '> title'))
+    if (title_node = (node.at_css '> title') || (node.at_css '> info > title'))
+      title = format_text title_node
       leading_char = '.'
       # special case for <itemizedlist role="see-also-list"><title>:
       # omit the prefix '.' as we want simple text on a bullet, not a heading
@@ -303,7 +304,7 @@ class DocBookVisitor
   end
 
   def visit_info node
-    process_info node
+    process_info node if SECTION_NAMES.include? node.parent.name
   end
   alias :visit_bookinfo :visit_info
   alias :visit_articleinfo :visit_info
