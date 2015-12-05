@@ -615,7 +615,8 @@ class DocBookVisitor
 
   def visit_varlistentry node
     # FIXME adds an extra blank line before first item
-    append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
+    #append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
+    append_blank_line
     append_line %(#{format_text(node.at_css node, '> term')}::)
     item_text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
     if item_text
