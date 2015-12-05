@@ -17,7 +17,7 @@ To run the script, simply execute it with Ruby and pass a DocBook file as the fi
 The script currently prints the AsciiDoc to stdout.
 You need to redirect the output to a file in order to save it.
 
- $ ruby docbookrx.rb sample.xml > sample.ad
+ $ ruby docbookrx.rb sample.xml > sample.adoc
 
 It's not perfect yet, but we'll get there with your help.
 You'll find a list of tasks that need attention listed in the WORKLOG.adoc file.
