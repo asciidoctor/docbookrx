@@ -1,10 +1,11 @@
-= TODO
+= WORKLOG
+
+== TODO
 
 - make dsl block for adjoing children inside deliminted block
 - use entity_ref?, comment?, pi? instead of comparing type to constant (mixin if necessary)
 - try to set leveloffset only once
 - make level shifting configurable or auto-detectable?
-- fix extra line above variable list
 - variablelist children
 - handle preface correctly
 - table width
@@ -19,7 +20,7 @@
 - make char for emphasis quoting an option
 - make literal paragraph indent size an option
 - try to use + for literal when possible
-- nested lists
+- nested lists (currently using same level)
 - cleaner solution for skipping title node
 
 == Samples
@@ -27,3 +28,4 @@
 - https://github.com/beanvalidation/beanvalidation-spec
 - https://github.com/SpringSource/spring-security/tree/master/docs
 - https://github.com/belaban/JGroups/pull/95/files
+- https://github.com/hibernate/hibernate-orm/tree/master/documentation/src/main/docbook/userGuide/en-US
