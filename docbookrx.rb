@@ -1113,7 +1113,7 @@ class DocBookVisitor
   end
 
   def visit_footnote node
-    append_text %(footnote:[#{text_at_css node, '> para', '> simpara'}])
+    append_text %(footnote:[#{(text_at_css node, '> para', '> simpara').strip}])
     # FIXME not sure a blank line is always appropriate
     #append_blank_line
     false
