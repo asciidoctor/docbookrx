@@ -734,19 +734,21 @@ class DocBookVisitor
     linenums = node.attr('linenumbering') == 'numbered'
     append_blank_line unless node.parent.name == 'para'
     append_line %([source#{language}#{linenums ? ',linenums' : nil}])
-    source_lines = node.text.rstrip.split EOL
-    elements = node.elements
-    if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
+    if (first_element = node.elements.first) && first_element.name == 'include'
       append_line '----'
-      if elements.size == 1 && elements.first.attr('href')
-        src_file = elements.first.attr('href')       
-        append_line %(include::{sourcedir}/#{src_file}[])
-      else   
-        append_line (source_lines * EOL)
-      end   
+      node.elements.each do |el|
+        append_line %(include::{sourcedir}/#{el.attr 'href'}[])
+      end
       append_line '----'
     else
-      append_line (source_lines * EOL)
+      source_lines = node.text.rstrip.split EOL
+      if @delimit_source || (source_lines.detect {|line| line.rstrip.empty?})
+        append_line '----'
+        append_line (source_lines * EOL)
+        append_line '----'
+      else
+        append_line (source_lines * EOL)
+      end
     end
     false
   end
