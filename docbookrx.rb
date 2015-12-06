@@ -63,7 +63,7 @@ class DocBookVisitor
 
   ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'computeroutput', 'database', 'literal', 'tag', 'userinput']
 
-  NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname']
+  NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'exceptionname', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname']
 
   LITERAL_NAMES = ANONYMOUS_LITERAL_NAMES + NAMED_LITERAL_NAMES
 
