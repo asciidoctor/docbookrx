@@ -217,8 +217,8 @@ class DocBookVisitor
 
   ## Writer methods
 
-  def append_line line, unsub = false
-    line = reverse_subs line if unsub
+  def append_line line = '', unsub = false
+    line = reverse_subs line if !line.empty? && unsub
     @lines << line
   end
 
@@ -450,6 +450,17 @@ class DocBookVisitor
     end
     append_line %(#{'=' * @level} #{unwrap_text title})
     yield if block_given?
+    if (abstract_node = (node.at_css '> info > abstract'))
+      append_line
+      append_line '[abstract]'
+      append_line '--'
+      abstract_node.elements.each do |el|
+        append_line
+        proceed el
+        append_line
+      end
+      append_text '--'
+    end
     @level += 1
     proceed node, :using_elements => true
     @level -= 1
