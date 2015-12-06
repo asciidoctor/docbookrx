@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+if File.exist?(app_lib_path = File.join(File.dirname(__FILE__), '../lib/docbookrx'))
+  require app_lib_path
+else
+  require 'docbookrx'
+end
+
+infile = ARGV.first || 'sample.xml'
+
+unless infile
+  warn 'Please specify a DocBook file to convert.'
+  exit 1
+end
+
+# defaults shown
+# TODO cli should allow these to be set
+opts = {
+#  runin_admonition_label: true,
+#  sentence_per_line: true,
+#  preserve_line_wrap: false,
+#  delimit_source: true,
+#  idprefix: '_',
+#  idseparator: '_',
+#  normalize_ids: true,
+#  compat_mode: false,
+#  attributes: {
+#    'sourcedir' => '.',
+#    'uri-example' => 'http://example.org'
+#  }
+}
+
+Docbookrx.convert_file infile, opts
+exit 0
