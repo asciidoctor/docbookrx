@@ -581,7 +581,11 @@ class DocBookVisitor
   # FIXME this method needs cleanup, remove hardcoded logic!
   def visit_listitem node
     elements = node.elements.to_a
-    item_text = format_text elements.shift
+    item_text = if elements.size > 0
+      format_text elements.shift
+    else
+      format_text node
+    end
     
     # do we want variable depths of bullets?
     depth = (node.ancestors.length - 4)
