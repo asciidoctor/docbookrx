@@ -984,6 +984,8 @@ class DocBookVisitor
     append_text format_text node
   end
 
+  alias :visit_attribution :proceed
+
   def visit_quote node
     append_text %("`#{format_text node}`")
   end
