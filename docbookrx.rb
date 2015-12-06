@@ -1091,6 +1091,8 @@ class DocBookVisitor
     false 
   end
 
+  alias :visit_guiicon :proceed
+
   def visit_inlinemediaobject node
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
