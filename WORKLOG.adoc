@@ -3,7 +3,11 @@
 == TODO
 
 - only use elements on listitem if first element in paragraph; otherwise, treat as inline text
+
+- create proper API; tuck under a module
+- set default attributes for article doctype
 - make dsl block for adjoing children inside deliminted block
+- make option to drop role names for literals
 - use entity_ref?, comment?, pi? instead of comparing type to constant (mixin if necessary)
 - try to set leveloffset only once
 - make level shifting configurable or auto-detectable?
@@ -25,6 +29,20 @@
 - cleaner solution for skipping title node
 - text after variablelist inside same paragraph gets adjoined to text of last item
 - make a function for detecting need for unconstrained formatting marks
+- don't start output document with blank line if input document does not start with section
+
+== Test cases
+
+* unordered / ordered list with complex content
+* nested lists
+* description lists
+* uses double `` if literal phrase is surrounded by a word character (before, after or both)
+* retrieves section title from either first child named title or title child of info
+* honors sentence_per_line option
+* auto-generates ids for sections
+* handles id override on section
+* follows xi:include elements in section content
+* replaces xi:include with include macro in programlisting
 
 == Samples
 

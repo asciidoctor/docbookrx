@@ -1,20 +1,8 @@
-# docbookrx - A script to convert DocBook to AsciiDoc
-
-require 'nokogiri'
-
-infile = ARGV.first || 'sample.xml'
-
-unless infile
-  warn 'Please specify a DocBook file to convert'
-  exit
-end
-
-docbook = File.read infile
-
-class DocBookVisitor
+module Docbookrx
+class DocbookVisitor
   # transfer node type constants from Nokogiri
-  Nokogiri::XML::Node.constants.each do |c|
-    const_set c, (Nokogiri::XML::Node.const_get c) if c.to_s.end_with? '_NODE'
+  ::Nokogiri::XML::Node.constants.grep(/_NODE$/).each do |sym|
+    const_set sym, (::Nokogiri::XML::Node.const_get sym)
   end
 
   IndentationRx = /^[[:blank:]]+/
@@ -83,10 +71,11 @@ class DocBookVisitor
     @list_index = 0
     @continuation = false
     @adjoin_next = false
+    # QUESTION why not handle idprefix and idseparator as attributes (delete on read)?
     @idprefix = opts[:idprefix] || '_'
     @idseparator = opts[:idseparator] || '_'
     @normalize_ids = opts.fetch :normalize_ids, true
-    @em_char = opts[:em_char] || '_'
+    @compat_mode = opts[:compat_mode]
     @attributes = opts[:attributes] || {}
     @runin_admonition_label = opts.fetch :runin_admonition_label, true
     @sentence_per_line = opts.fetch :sentence_per_line, true
@@ -154,9 +143,9 @@ class DocBookVisitor
 
   def text node, unsub = true
     if node
-      if node.is_a? Nokogiri::XML::Node
+      if node.is_a? ::Nokogiri::XML::Node
         unsub ? reverse_subs(node.text) : node.text
-      elsif node.is_a? Nokogiri::XML::NodeSet && (first = node.first)
+      elsif node.is_a? ::Nokogiri::XML::NodeSet && (first = node.first)
         unsub ? reverse_subs(first.text) : first.text
       else
         nil
@@ -171,11 +160,11 @@ class DocBookVisitor
   end
 
   def format_text node
-    if node && (node.is_a? Nokogiri::XML::NodeSet)
+    if node && (node.is_a? ::Nokogiri::XML::NodeSet)
       node = node.first
     end
 
-    if node.is_a? Nokogiri::XML::Node
+    if node.is_a? ::Nokogiri::XML::Node
       append_blank_line
       proceed node
       @lines.pop
@@ -324,6 +313,7 @@ class DocBookVisitor
     if node == node.document.root
       @adjoin_next = true
       process_section node do
+        append_line ':compat-mode:' if @compat_mode
         append_line ':doctype: book'
         append_line ':sectnums:'
         append_line ':toc: left'
@@ -373,6 +363,7 @@ class DocBookVisitor
       append_line %(#{date_line}#{date_node.text})
     end
     if node.name == 'bookinfo' || node.parent.name == 'book' || node.parent.name == 'chapter'
+      append_line ':compat-mode:' if @compat_mode
       append_line ':doctype: book'
       append_line ':sectnums:'
       append_line ':toc: left'
@@ -392,14 +383,14 @@ class DocBookVisitor
     # QUESTION should we reuse this instance to traverse the new tree?
     include_infile = node.attr 'href'
     include_outfile = include_infile.sub '.xml', '.adoc'
-    if File.readable? include_infile
-      doc = Nokogiri::XML::Document.parse(File.read include_infile)
+    if ::File.readable? include_infile
+      doc = ::Nokogiri::XML::Document.parse(::File.read include_infile)
       # TODO pass in options that were passed to this visitor
       visitor = self.class.new
       doc.root.accept visitor
       result = visitor.lines
       result.shift while result.size > 0 && result.first.empty?
-      File.open(include_outfile, 'w') {|f| f.write(visitor.lines * EOL) }
+      ::File.open(include_outfile, 'w') {|f| f.write(visitor.lines * EOL) }
     else
       warn %(Include file not readable: #{include_infile})
     end
@@ -925,7 +916,7 @@ class DocBookVisitor
         # FIXME sentence-per-line logic should be applied at paragraph block level only
         if @sentence_per_line
           # FIXME move regexp to constant
-          text = text.gsub(/(?:^|\b)\.[[:blank:]]+(?!\Z)/, %(.\n))
+          text = text.gsub(/(?:^|\b)\.[[:blank:]]+(?!\Z)/, %(.#{EOL}))
         end
       end
       append_text text, true
@@ -1008,7 +999,7 @@ class DocBookVisitor
   end
 
   def visit_emphasis node
-    quote_char = node.attr('role') == 'strong' ? '*' : @em_char
+    quote_char = node.attr('role') == 'strong' ? '*' : '_'
     append_text %(#{quote_char}#{format_text node}#{quote_char})
     false
   end
@@ -1124,7 +1115,7 @@ class DocBookVisitor
   def visit_inlinemediaobject node
     src = node.at_css('imageobject imagedata').attr('fileref')
     alt = text_at_css node, 'textobject phrase'
-    generated_alt = File.basename(src)[0...-(File.extname(src).length)]
+    generated_alt = ::File.basename(src)[0...-(::File.extname(src).length)]
     alt = nil if alt && alt == generated_alt
     append_text %(image:#{src}[#{lazy_quote alt}])
     false
@@ -1141,7 +1132,7 @@ class DocBookVisitor
     if (image_node = node.at_css('imageobject imagedata'))
       src = image_node.attr('fileref')
       alt = text_at_css node, 'textobject phrase'
-      generated_alt = File.basename(src)[0...-(File.extname(src).length)]
+      generated_alt = ::File.basename(src)[0...-(::File.extname(src).length)]
       alt = nil if alt && alt == generated_alt
       append_blank_line
       append_line %(image::#{src}[#{lazy_quote alt}])
@@ -1211,25 +1202,5 @@ class DocBookVisitor
   def unwrap_text text
     text.gsub WrappedIndentRx, ''
   end
-
 end
-
-doc = Nokogiri::XML::Document.parse(docbook)
-
-options = {
-#  runin_admonition_label: false,
-#  sentence_per_line: false,
-#  preserve_line_wrap: true,
-#  idprefix: '',
-#  idseparator: '-',
-#  normalize_ids: false,
-#  em_char: '\'',
-#  attributes: {
-#    'ref-contribute' => 'http://beanvalidation.org/contribute/',
-#    'ref-jsr-317' => 'http://jcp.org/en/jsr/detail?id=317'
-#  }
-}
-
-visitor = DocBookVisitor.new options
-doc.root.accept visitor
-puts visitor.lines * "\n"
+end
