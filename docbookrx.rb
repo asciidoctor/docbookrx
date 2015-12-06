@@ -57,7 +57,9 @@ class DocBookVisitor
 
   SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'bibliography', 'glossary', 'preface']
 
-  SECTION_NAMES = ['article', 'book', 'chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
+  DOCUMENT_NAMES = ['article', 'book']
+
+  SECTION_NAMES = DOCUMENT_NAMES + ['chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
   ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'computeroutput', 'literal', 'tag', 'userinput']
 
@@ -312,7 +314,7 @@ class DocBookVisitor
   end
 
   def visit_info node
-    process_info node if SECTION_NAMES.include? node.parent.name
+    process_info node if DOCUMENT_NAMES.include? node.parent.name
   end
   alias :visit_bookinfo :visit_info
   alias :visit_articleinfo :visit_info
