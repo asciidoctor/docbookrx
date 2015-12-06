@@ -931,12 +931,12 @@ class DocbookVisitor
     false
   end
 
-  # NOTE same as visit_xref, except element text is used as label
   def visit_link node
-    linkend = node.attr 'linkend'
-    label = format_text node
-    id = @normalize_ids ? (normalize_id linkend) : linkend
-    append_text %(<<#{id},#{lazy_quote label}>>)
+    if node.attr 'linkend'
+      visit_xref node
+    else
+      visit_uri node
+    end
     false
   end
 
@@ -966,15 +966,17 @@ class DocbookVisitor
     false
   end
 
-  alias :visit_link :visit_uri
   alias :visit_ulink :visit_uri
 
+  # QUESTION detect bibliography reference and autogen label?
   def visit_xref node
     linkend = node.attr 'linkend'
-    # FIXME delegate label formatting to a method
-    label = linkend.gsub '_', ' '
     id = @normalize_ids ? (normalize_id linkend) : linkend
-    append_text %(<<#{id},#{lazy_quote label}>>)
+    if (label = format_text node).empty?
+      append_text %(<<#{id}>>)
+    else
+      append_text %(<<#{id},#{lazy_quote label}>>)
+    end
     false
   end
 

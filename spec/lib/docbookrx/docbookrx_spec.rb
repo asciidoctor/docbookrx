@@ -114,6 +114,30 @@ content
     expect(output).to include(expected)
   end
 
+  it 'should convert xref element to xref' do
+    input = <<-EOS
+<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">See <xref linkend="usage"/> for more information.</para>
+    EOS
+
+    expected = '<<usage>>'
+
+    output = Docbookrx.convert input, normalize_ids: false
+
+    expect(output).to include(expected)
+  end
+
+  it 'should use explicit label on xref if provided' do
+    input = <<-EOS
+<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">See <xref linkend="usage">Usage</xref> for more information.</para>
+    EOS
+
+    expected = '<<usage,Usage>>'
+
+    output = Docbookrx.convert input, normalize_ids: false
+
+    expect(output).to include(expected)
+  end
+
   it 'should convert itemized list to unordered list' do
     input = <<-EOS
 <itemizedlist xmlns="http://docbook.org/ns/docbook">
