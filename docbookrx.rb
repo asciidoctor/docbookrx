@@ -665,6 +665,10 @@ class DocBookVisitor
     false
   end
 
+  def visit_citation node
+    append_text %(<<#{node.text}>>)
+  end
+
   def visit_bibliodiv node
     append_blank_line
     append_line '[bibliography]'
