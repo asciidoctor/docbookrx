@@ -2,6 +2,7 @@
 
 == TODO
 
+- only use elements on listitem if first element in paragraph; otherwise, treat as inline text
 - make dsl block for adjoing children inside deliminted block
 - use entity_ref?, comment?, pi? instead of comparing type to constant (mixin if necessary)
 - try to set leveloffset only once
@@ -14,14 +15,16 @@
 - verse blockquote
 - citetitle and attribute on blockquote
 - list continuation doesn't get added if literallayout is delimited
-- qanda list
+- qanda list (i.e., qandaset)
+- callouts (i.e, calloutlist)
 - list ids
-- callouts
 - make char for emphasis quoting an option
 - make literal paragraph indent size an option
 - try to use + for literal when possible
 - nested lists (currently using same level)
 - cleaner solution for skipping title node
+- text after variablelist inside same paragraph gets adjoined to text of last item
+- make a function for detecting need for unconstrained formatting marks
 
 == Samples
 
