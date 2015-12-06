@@ -974,6 +974,10 @@ class DocBookVisitor
     false
   end
 
+  def visit_foreignphrase node
+    append_text format_text node
+  end
+
   def visit_emphasis node
     quote_char = node.attr('role') == 'strong' ? '*' : @em_char
     append_text %(#{quote_char}#{format_text node}#{quote_char})
