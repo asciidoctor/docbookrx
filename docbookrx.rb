@@ -1090,13 +1090,12 @@ class DocBookVisitor
       end
       append_text %([#{shortname}])
     end
-    node_text = node.text
-    if ((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}$/ =~ prev_node.text) ||
-      ((next_node = node.next) && next_node.type == TEXT_NODE && /^\p{Word}/ =~ next_node.text)
-      append_text %(``#{node_text}``)
+    if ((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
+      ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
+      append_text %(``#{node.text}``)
     else
       # FIXME be smart about when to use ` vs `` or `+...+`
-      append_text %(`#{node_text}`)
+      append_text %(`#{node.text}`)
     end
     false 
   end
