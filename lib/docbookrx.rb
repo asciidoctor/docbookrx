@@ -4,6 +4,7 @@ require_relative 'docbookrx/docbook_visitor'
 module Docbookrx
   def self.convert str, opts = {}
     xmldoc = ::Nokogiri::XML::Document.parse str
+    raise "Not a parseable document" if !xmldoc.root
     visitor = DocbookVisitor.new opts
     xmldoc.root.accept visitor
     visitor.lines * "\n"
