@@ -189,4 +189,30 @@ content
 
     expect(output).to include(expected)
   end
+
+  it 'should convert various types to anonymous literal' do
+    input = <<-EOS
+<para>
+<code>Apples</code>, <command>oranges</command>, <computeroutput>bananas</computeroutput>, <database>pears</database>, <function>grapes</function>, <literal>mangos</literal>, <tag>kiwis</tag>, and <userinput>persimmons</userinput>.
+</para>
+    EOS
+
+    expected = <<-EOS.rstrip
+`Apples`, `oranges`, `bananas`, `pears`, `grapes`, `mangos`, `kiwis`, and `persimmons`.
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert quote to double quoted text' do
+    input = '<para><quote>Apples</quote></para>'
+
+    expected = '"`Apples`"'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
