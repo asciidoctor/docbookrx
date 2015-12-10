@@ -5,6 +5,8 @@ class DocbookVisitor
     const_set sym, (::Nokogiri::XML::Node.const_get sym)
   end
 
+  DocbookNs = 'http://docbook.org/ns/docbook'
+  XlinkNs = 'http://www.w3.org/1999/xlink'
   IndentationRx = /^[[:blank:]]+/
   LeadingSpaceRx = /\A\s/
   LeadingEndlinesRx = /\A\n+/
@@ -49,7 +51,7 @@ class DocbookVisitor
 
   SECTION_NAMES = DOCUMENT_NAMES + ['chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
-  ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'computeroutput', 'database', 'literal', 'tag', 'userinput']
+  ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'computeroutput', 'database', 'function', 'literal', 'tag', 'userinput']
 
   NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'exceptionname', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname']
 
@@ -944,8 +946,7 @@ class DocbookVisitor
     url = if node.name == 'ulink'
       node.attr 'url'
     else
-      xlink_ns = node.namespaces.find {|(k,v)| v == 'http://www.w3.org/1999/xlink' }.first.split(':', 2).last
-      node.attr %(#{xlink_ns}:href)
+      (node.attribute_with_ns 'href', XlinkNs).value
     end
     prefix = 'link:'
     if url.start_with?('http://') || url.start_with?('https://')
@@ -1149,6 +1150,58 @@ class DocbookVisitor
     # FIXME not sure a blank line is always appropriate
     #append_blank_line
     false
+  end
+
+  def visit_funcsynopsis node
+    append_blank_line unless node.parent.name == 'para'
+    append_line '[source,c]'
+    append_line '----'
+
+    if (info = node.at_xpath 'db:funcsynopsisinfo', 'db': DocbookNs)
+      info.text.strip.each_line do |line|
+        append_line line.strip
+      end
+      append_blank_line
+    end
+
+    if (prototype = node.at_xpath 'db:funcprototype', 'db': DocbookNs)
+      indent = 0
+      first = true
+      append_blank_line
+      if (funcdef = prototype.at_xpath 'db:funcdef', 'db': DocbookNs)
+        append_text funcdef.text
+        indent = funcdef.text.length + 2
+      end
+
+      (prototype.xpath 'db:paramdef', 'db': DocbookNs).each do |paramdef|
+        if first
+          append_text ' ('
+          first = false
+        else
+          append_text ','
+          append_line ' ' * indent
+        end
+        append_text paramdef.text.sub /\n.*/m, ''
+        if (param = paramdef.at_xpath 'db:funcparams', 'db': DocbookNs)
+          append_text %[ (#{param.text})]
+        end
+      end
+
+      if (varargs = prototype.at_xpath 'db:varargs', 'db': DocbookNs)
+        if first
+          append_text ' ('
+          first = false
+        else
+          append_text ','
+          append_line ' ' * indent
+        end
+        append_text %(#{varargs.text}...)
+      end
+
+      append_text(first ? ' (void);' : ');')
+    end
+
+    append_line '----'
   end
 
   # FIXME blank lines showing up between adjacent index terms

@@ -189,4 +189,95 @@ content
 
     expect(output).to include(expected)
   end
+
+  it 'should convert various types to anonymous literal' do
+    input = <<-EOS
+<para>
+<code>Apples</code>, <command>oranges</command>, <computeroutput>bananas</computeroutput>, <database>pears</database>, <function>grapes</function>, <literal>mangos</literal>, <tag>kiwis</tag>, and <userinput>persimmons</userinput>.
+</para>
+    EOS
+
+    expected = <<-EOS.rstrip
+`Apples`, `oranges`, `bananas`, `pears`, `grapes`, `mangos`, `kiwis`, and `persimmons`.
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert quote to double quoted text' do
+    input = '<para><quote>Apples</quote></para>'
+
+    expected = '"`Apples`"'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert funcsynopsis to C source' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'>
+
+<funcsynopsis>
+  <funcprototype>
+    <?dbhtml funcsynopsis-style='ansi'?>
+    <funcdef>int <function>rand</function></funcdef>
+    <void/>
+ </funcprototype>
+</funcsynopsis>
+
+<funcsynopsis>
+  <funcsynopsisinfo>
+#include &lt;varargs.h&gt;
+  </funcsynopsisinfo>
+  <funcprototype>
+    <?dbhtml funcsynopsis-style='kr'?>
+    <funcdef>int <function>max</function></funcdef>
+    <varargs/>
+  </funcprototype>
+</funcsynopsis>
+
+<funcsynopsis>
+  <funcprototype>
+  <?dbhtml funcsynopsis-style='ansi'?>
+    <funcdef>void <function>qsort</function></funcdef>
+    <paramdef>void *<parameter>dataptr</parameter>[]</paramdef>
+      <paramdef>int <parameter>left</parameter></paramdef>
+    <paramdef>int <parameter>right</parameter></paramdef>
+      <paramdef>int <parameter>(*comp)</parameter>
+      <funcparams>void *, void *</funcparams></paramdef>
+  </funcprototype>
+</funcsynopsis>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+[source,c]
+----
+int rand (void);
+----
+
+[source,c]
+----
+#include <varargs.h>
+
+int max (...);
+----
+
+[source,c]
+----
+void qsort (void *dataptr[],
+            int left,
+            int right,
+            int (*comp) (void *, void *));
+----
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
