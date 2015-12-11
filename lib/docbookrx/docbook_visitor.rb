@@ -1193,6 +1193,71 @@ class DocbookVisitor
     false
   end
 
+  def visit_funcsynopsis node
+    append_line '[source,c]'
+    append_line '----'
+
+    info = node.at_xpath('xmlns:funcsynopsisinfo',
+                         {'xmlns' => 'http://docbook.org/ns/docbook'})
+    if info
+      info.text.strip.each_line do |line|
+        append_line line.strip
+      end
+      append_blank_line
+    end
+
+    prototype = node.at_xpath('xmlns:funcprototype',
+                              {'xmlns' => 'http://docbook.org/ns/docbook'})
+    if prototype
+      indent = 0
+      first = true
+      append_blank_line
+      funcdef = prototype.at_xpath('xmlns:funcdef',
+                                   {'xmlns' => 'http://docbook.org/ns/docbook'})
+      if funcdef
+        append_text funcdef.text
+        indent = funcdef.text.length + 2
+      end
+
+      paramdefs = prototype.xpath('xmlns:paramdef',
+                                  {'xmlns' => 'http://docbook.org/ns/docbook'})
+      paramdefs.each do |paramdef|
+        if first
+          append_text ' ('
+          first = nil
+        else
+          append_text ','
+          append_line ' ' * indent
+        end
+        append_text paramdef.text.sub(/\n.*/m, "")
+        param = paramdef.at_xpath('xmlns:funcparams',
+                                  {'xmlns' => 'http://docbook.org/ns/docbook'})
+        append_text " (#{param.text})" if param
+      end
+
+      varargs = prototype.at_xpath('xmlns:varargs',
+                                   {'xmlns' => 'http://docbook.org/ns/docbook'})
+      if varargs
+        if first
+          append_text ' ('
+          first = nil
+        else
+          append_text ','
+          append_line ' ' * indent
+        end
+        append_text "#{varargs.text}..."
+      end
+
+      if first
+        append_text ' (void);'
+      else
+        append_text ');'
+      end
+    end
+
+    append_line '----'
+  end
+
   def lazy_quote text, seek = ','
     if text && (text.include? seek)
       %("#{text}")
