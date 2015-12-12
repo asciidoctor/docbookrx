@@ -1,13 +1,12 @@
 #!/usr/bin/env ruby
 
-if File.exist?(app_lib_path = File.join(File.dirname(__FILE__), '../lib/docbookrx'))
+if File.exist?(app_lib_path = (File.expand_path '../../lib/docbookrx', __FILE__))
   require app_lib_path
 else
   require 'docbookrx'
 end
 
-infile = ARGV.first || 'sample.xml'
-
+infile = ARGV.first
 unless infile
   warn 'Please specify a DocBook file to convert.'
   exit 1
