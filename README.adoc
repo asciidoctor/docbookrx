@@ -1,8 +1,9 @@
-= DocBook ℞
+= DocBookRx: The ℞ for all your DocBook pains
 Dan Allen <https://github.com/mojavelinux>
 
-The prescription (℞) you need to get rid of your DocBook problem.
-Extracts AsciiDoc from DocBook XML (hell).
+The prescription (℞) you need to get rid of your DocBook pains.
+Converts from DocBook XML (hell) to AsciiDoc.
+//Extracts AsciiDoc from DocBook XML (hell).
 
 DocBook ℞ is the beginnings of a DocBook to http://asciidoc.org[AsciiDoc] converter written in Ruby.
 This converter is far from perfect at the moment and some of the conversion is done hastily.
