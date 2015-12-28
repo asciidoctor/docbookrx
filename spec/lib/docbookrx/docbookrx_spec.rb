@@ -77,10 +77,15 @@ content
 
   it 'should convert uri element to uri macro' do
     input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'>
 <para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Read about <uri xlink:href="http://en.wikipedia.org/wiki/Object-relational_mapping">Object-relational mapping</uri> on Wikipedia.</para>
+<para>All DocBook V5.0 elements are in the namespace <uri>http://docbook.org/ns/docbook</uri>.</para>
+</article>
     EOS
 
-    expected = 'Read about http://en.wikipedia.org/wiki/Object-relational_mapping[Object-relational mapping] on Wikipedia.'
+    expected = 'Read about http://en.wikipedia.org/wiki/Object-relational_mapping[Object-relational mapping] on Wikipedia.
+
+All DocBook V5.0 elements are in the namespace http://docbook.org/ns/docbook.'
 
     output = Docbookrx.convert input
 
