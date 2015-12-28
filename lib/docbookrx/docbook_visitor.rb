@@ -946,7 +946,12 @@ class DocbookVisitor
     url = if node.name == 'ulink'
       node.attr 'url'
     else
-      (node.attribute_with_ns 'href', XlinkNs).value
+      href = (node.attribute_with_ns 'href', XlinkNs)
+      if (href)
+        href.value
+      else
+        node.text
+      end
     end
     prefix = 'link:'
     if url.start_with?('http://') || url.start_with?('https://')
