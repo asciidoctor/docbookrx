@@ -310,4 +310,14 @@ Apple, oranges and bananas
 
     expect(output).to include(expected)
   end
+
+  it 'should accept special section names without title' do
+    input = '<bibliography></bibliography>'
+
+    expected = '= Bibliography'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
