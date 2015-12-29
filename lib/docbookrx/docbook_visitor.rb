@@ -434,8 +434,12 @@ class DocbookVisitor
       end
       format_text title_node
     else
-      warn %(No title found for section node: #{node})
-      'Unknown Title!'
+      if special
+        special.capitalize
+      else
+        warn %(No title found for section node: #{node})
+        'Unknown Title!'
+      end
     end
     if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
