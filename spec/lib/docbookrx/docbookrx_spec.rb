@@ -320,4 +320,37 @@ Apple, oranges and bananas
 
     expect(output).to include(expected)
   end
+
+  it 'should convert quandaset elements to Q and A list' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'>
+<qandaset>
+<qandadiv>
+<title>Various Questions</title>
+<qandaentry xml:id="some-question">
+<question>
+<para>My question?</para>
+</question>
+<answer>
+<para>My answer!</para>
+</answer>
+</qandaentry>
+</qandadiv>
+</qandaset>
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+.Various Questions
+
+[[_some_question]]
+My question?::
+
+My answer!
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end

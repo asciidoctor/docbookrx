@@ -1245,6 +1245,43 @@ class DocbookVisitor
     false
   end
 
+  def visit_qandaset node
+    node.elements.to_a.each do |quandadiv|
+      quandadiv.elements.each do |element|
+        if element.name == 'title'
+          append_line ".#{element.text}"
+          append_blank_line
+          append_line '[qanda]'
+        elsif element.name == 'qandaentry'
+          id = resolve_id element, normalize: @normalize_ids
+          if (question = element.at_xpath 'db:question/db:para', 'db': DocbookNs)
+            append_line %([[#{id}]]) if id
+            append_line (format_text question) + "::"
+            if (answer = element.at_xpath 'db:answer', 'db': DocbookNs)
+              first = true
+              answer.children.each_with_index do |child, i|
+                unless child.text.rstrip.empty?
+                  unless first
+                    append_line '+'
+                    @continuation = true
+                  end
+                  first = nil
+                  child.accept self
+                end
+              end
+              @continuation = false
+            else
+              warn %(Missing answer in quandaset!)
+            end
+            append_blank_line
+          else
+            warn %(Missing question in quandaset! Skipping.)
+          end
+        end
+      end
+    end
+  end
+
   def lazy_quote text, seek = ','
     if text && (text.include? seek)
       %("#{text}")
