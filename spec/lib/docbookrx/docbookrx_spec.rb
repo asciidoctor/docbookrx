@@ -285,4 +285,29 @@ void qsort (void *dataptr[],
 
     expect(output).to include(expected)
   end
+
+  it 'should convert note element to NOTE' do
+    input = <<-EOS
+<note>
+  <para>
+    Please note the fruit:
+    <screen>Apple, oranges and bananas</screen>
+  </para>
+</note>
+    EOS
+
+    expected = <<-EOS.rstrip
+[NOTE]
+====
+Please note the fruit: 
+----
+Apple, oranges and bananas
+----  
+====
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
