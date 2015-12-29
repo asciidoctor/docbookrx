@@ -79,7 +79,6 @@ class DocbookVisitor
     @normalize_ids = opts.fetch :normalize_ids, true
     @compat_mode = opts[:compat_mode]
     @attributes = opts[:attributes] || {}
-    @runin_admonition_label = opts.fetch :runin_admonition_label, true
     @sentence_per_line = opts.fetch :sentence_per_line, true
     @preserve_line_wrap = if @sentence_per_line
       false
@@ -525,21 +524,12 @@ class DocbookVisitor
     elements = node.elements
     append_blank_line
     append_block_title node
-    if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
-      if @runin_admonition_label
-        append_line %(#{label}: #{format_text child})
-      else
-        append_line %([#{label}])
-        append_line (format_text child)
-      end
-    else
-      append_line %([#{label}])
-      append_line '===='
-      @adjoin_next = true
-      proceed node
-      @adjoin_next = false
-      append_line '===='
-    end
+    append_line %([#{label}])
+    append_line '===='
+    @adjoin_next = true
+    proceed node
+    @adjoin_next = false
+    append_line '===='
     false
   end
 
