@@ -1002,7 +1002,13 @@ class DocbookVisitor
 
   def visit_emphasis node
     quote_char = node.attr('role') == 'strong' ? '*' : '_'
-    append_text %(#{quote_char}#{format_text node}#{quote_char})
+    times = 1
+    if((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
+      ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
+      times = 2
+    end
+
+    append_text %(#{quote_char * times}#{format_text node}#{quote_char * times})
     false
   end
 

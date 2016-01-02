@@ -353,4 +353,14 @@ My answer!
 
     expect(output).to include(expected)
   end
+
+  it 'should convert emphasis elements to emphasized text' do
+    input = "<para><emphasis>Apple</emphasis> or <emphasis>pine</emphasis>apple.</para>"
+
+    expected = "_Apple_ or __pine__apple"
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
