@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'spec_helper'
 
 describe 'Conversion' do
@@ -359,6 +360,37 @@ My answer!
     input = "<para><emphasis>Apple</emphasis> or <emphasis>pine</emphasis>apple.</para>"
 
     expected = "_Apple_ or __pine__apple"
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert bibliography section to bibliography section' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+<bibliography xml:id="references">
+<bibliomixed>
+<abbrev>RNCTUT</abbrev>
+Clark, James – Cowan, John – MURATA, Makoto: <title>RELAX NG Compact Syntax Tutorial</title>.
+Working Draft, 26 March 2003. OASIS. <bibliomisc><link xl:href="http://relaxng.org/compact-tutorial-20030326.html"/></bibliomisc>
+</bibliomixed>
+</bibliography>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+[bibliography]
+[[_references]]
+== Bibliography
+- [[[RNCTUT]]] 
+Clark, James – Cowan, John – MURATA, Makoto: RELAX NG Compact Syntax Tutorial.
+Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-20030326.html
+    EOS
 
     output = Docbookrx.convert input
 

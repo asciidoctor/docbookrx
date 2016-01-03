@@ -679,8 +679,16 @@ class DocbookVisitor
 
   def visit_bibliomixed node
     append_blank_line
-    proceed node
-    append_line @lines.pop.sub(/^\[(.*?)\]/, '* [[[\\1]]]')
+    append_text '- '
+    node.children.each do |child|
+      if child.name == 'abbrev'
+        append_text %([[[#{child.text}]]] )
+      elsif child.name == 'title'
+        append_text child.text
+      else
+        child.accept self
+      end
+    end
     false
   end
 
