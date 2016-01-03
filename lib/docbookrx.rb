@@ -6,6 +6,9 @@ module Docbookrx
     xmldoc = ::Nokogiri::XML::Document.parse str
     raise 'Not a parseable document' unless (root = xmldoc.root)
     visitor = DocbookVisitor.new opts
+    if xmldoc.internal_subset
+      visitor.convert_entities xmldoc.internal_subset.children
+    end
     root.accept visitor
     visitor.lines * "\n"
   end
