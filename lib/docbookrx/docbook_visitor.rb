@@ -868,21 +868,17 @@ class DocbookVisitor
       (head.css '> row > entry').each do |cell|
         append_line %(| #{text cell})
       end
+      append_blank_line
     end
     (node.css '> tgroup > tbody > row').each do |row|
       append_blank_line
       row.elements.each do |cell|
-        next if !(element = cell.elements.first)
-        if element.text.empty?
-          append_line '|'
+        case cell.name
+        when 'literallayout'
+          append_line %(|`#{text cell}`)
         else
-          append_line %(| #{text cell})
-          #case element.name
-          #when 'literallayout'
-          #  append_line %(|`#{text cell}`)
-          #else
-          #  append_line %(|#{text cell})
-          #end
+          append_line '|'
+          proceed cell
         end
       end
     end
