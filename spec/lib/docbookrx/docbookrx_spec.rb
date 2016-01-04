@@ -396,4 +396,24 @@ Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-2003032
 
     expect(output).to include(expected)
   end
+
+  it 'should convert abbrev and acronym to monospaced' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+<para><acronym>Scuba</acronym> is an acronym while <abbrev>NSA</abbrev> is an abbreviation</para>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+`Scuba` is an acronym while `NSA` is an abbreviation
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
