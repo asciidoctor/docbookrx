@@ -645,4 +645,53 @@ break!
     expect(output).to include(expected)
   end
 
+  it 'should add all table lines and escape | characters in table text' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <table>
+    <tgroup cols="4"> 
+      <thead>
+        <row>
+          <entry>Name</entry>
+          <entry>Possible values</entry>
+          <entry>Default value</entry>
+          <entry>Description|Identity</entry>
+        </row>
+      </thead>
+      <tbody>
+        <row>
+          <entry>Tom</entry>
+          <entry>true|false|unknown</entry>
+          <entry>unknown</entry>
+          <entry>The quantum postman</entry>
+        </row>
+      </tbody>
+     </tgroup>
+  </table>    
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+[cols="1,1,1,1", options="header"]
+|===
+| Name
+| Possible values
+| Default value
+| Description\\|Identity
+
+
+|Tom
+|true\\|false\\|unknown
+|unknown
+|The quantum postman
+|===
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
 end

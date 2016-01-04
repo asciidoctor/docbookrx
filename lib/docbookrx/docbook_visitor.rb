@@ -91,6 +91,7 @@ class DocbookVisitor
     end
     @delimit_source = opts.fetch :delimit_source, true
     @initial_list_depth = 0
+    @in_table = false
   end
 
   ## Traversal methods
@@ -149,12 +150,16 @@ class DocbookVisitor
 
   def text node, unsub = true
     if node
+      out = nil;
       if node.is_a? ::Nokogiri::XML::Node
-        unsub ? reverse_subs(node.text) : node.text
+        out = unsub ? reverse_subs(node.text) : node.text
       elsif node.is_a? ::Nokogiri::XML::NodeSet && (first = node.first)
-        unsub ? reverse_subs(first.text) : first.text
-      else
-        nil
+        out = unsub ? reverse_subs(first.text) : first.text
+      end
+      if ! out.nil? && @in_table
+        out.gsub(/\|/, '\|')
+      else 
+        out
       end
     else
       nil
@@ -287,6 +292,8 @@ class DocbookVisitor
       if @initial_list_depth == 0
         @initial_list_depth = node.ancestors.length
       end
+    when "visit_table", "visit_informaltable"
+      @in_table = true
     end
   end
 
@@ -307,6 +314,8 @@ class DocbookVisitor
         if @initial_list_depth == node.ancestors.length
           @initial_list_depth = 0
         end
+      when "visit_table", "visit_informaltable"
+        @in_table = false
       end
     end
   end
@@ -930,21 +939,17 @@ class DocbookVisitor
       (head.css '> row > entry').each do |cell|
         append_line %(| #{text cell})
       end
+      append_blank_line
     end
     (node.css '> tgroup > tbody > row').each do |row|
       append_blank_line
       row.elements.each do |cell|
-        next if !(element = cell.elements.first)
-        if element.text.empty?
-          append_line '|'
+        case cell.name
+        when 'literallayout'
+          append_line %(|`#{text cell}`)
         else
-          append_line %(| #{text cell})
-          #case element.name
-          #when 'literallayout'
-          #  append_line %(|`#{text cell}`)
-          #else
-          #  append_line %(|#{text cell})
-          #end
+          append_line '|'
+          proceed cell
         end
       end
     end
@@ -997,6 +1002,10 @@ class DocbookVisitor
           # FIXME move regexp to constant
           text = text.gsub(/(?:^|\b)\.[[:blank:]]+(?!\Z)/, %(.#{EOL}))
         end
+      end
+      # escape |'s in table cell text
+      if @in_table
+        text = text.gsub(/\|/, '\|')
       end
       append_text text, true
     end
