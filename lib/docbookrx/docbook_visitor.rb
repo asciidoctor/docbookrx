@@ -910,8 +910,11 @@ class DocbookVisitor
         if is_first
           text = text.lstrip
         elsif leading_space_match && !!(text !~ LeadingSpaceRx)
-          # QUESTION if leading space was an endline, should we restore the endline or just put a space char?
-          text = %(#{leading_space_match[0]}#{text})
+          if @lines[-1] == "----" || @lines[-1] == "===="
+            text = %(#{leading_space_match[0]}#{text})
+          else
+            text = %( #{text})
+          end
         end
 
         # FIXME sentence-per-line logic should be applied at paragraph block level only
