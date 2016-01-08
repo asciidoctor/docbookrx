@@ -11,12 +11,12 @@ Gem::Specification.new do |s|
   s.description = 'The prescription you need to get rid of your DocBook problem. Converts DocBook XML to AsciiDoc.'
   s.license = 'MIT'
 
-  s.add_runtime_dependency 'nokogiri', '~> 1.6.7'
-  s.add_development_dependency 'rake', '~> 10.4.0'
-  s.add_development_dependency 'rspec', '~> 3.4.0'
-
   s.files = Dir['lib/*', 'lib/*/**']
   s.executables = ['docbookrx']
   s.extra_rdoc_files = Dir['README.doc', 'LICENSE']
   s.require_paths = ['lib']
+
+  s.add_runtime_dependency 'nokogiri', '~> 1.6.7'
+  s.add_development_dependency 'rake', '~> 10.4.0'
+  s.add_development_dependency 'rspec', '~> 3.4.0'
 end
