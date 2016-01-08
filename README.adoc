@@ -34,7 +34,7 @@ Simply copy the {uri-repo}[GitHub repository URL] and pass it to the `git clone`
 [subs=attributes+]
  $ git clone {uri-repo}
 
-Next, change to the project directory:
+Next, switch to the project directory:
 
 [subs=attributes+]
  $ cd {project-handle}
