@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
-if File.exist?(app_lib_path = (File.expand_path '../../lib/docbookrx', __FILE__))
-  require app_lib_path
+if File.exist?(docbookrx = (File.expand_path '../../lib/docbookrx', __FILE__))
+  require docbookrx
 else
   require 'docbookrx'
 end
