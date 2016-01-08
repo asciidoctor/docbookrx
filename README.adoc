@@ -68,7 +68,7 @@ Then, use the `bundle` command to install the project dependencies:
 
  $ bundle
 
-NOTE: You need to call `bundle` from the project directory so that it can find the [path]_Gemfile_.
+NOTE: You must invoke `bundle` from the project's root directory so it can locate the [path]_Gemfile_.
 
 == Running the converter
 
