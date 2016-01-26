@@ -64,7 +64,7 @@ If it's not installed, use the `gem` command to install it.
 
  $ gem install bundler
 
-Then, use the `bundle` command to install the project dependencies:
+Then, use the `bundle` command (which is provided by the bundler gem) to install the project dependencies:
 
  $ bundle
 
