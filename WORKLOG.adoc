@@ -2,34 +2,35 @@
 
 == TODO
 
-- only use elements on listitem if first element in paragraph; otherwise, treat as inline text
-
-- create proper API; tuck under a module
-- set default attributes for article doctype
-- make dsl block for adjoing children inside deliminted block
-- make option to drop role names for literals
-- use entity_ref?, comment?, pi? instead of comparing type to constant (mixin if necessary)
-- try to set leveloffset only once
-- make level shifting configurable or auto-detectable?
-- variablelist children
+- only use nested elements on listitem if first element in paragraph; otherwise, treat as inline text *
+- create proper API; tuck inside a Ruby module *
+- make dsl block for adjoining children inside delimited block
+- set default attributes for article doctype *
+- add option to drop role names for literals *
+- introduce entity_ref?, comment?, pi? methods instead of comparing type to a constant (mixin if necessary)
+- make level shifting configurable (or auto-detectable?)
+- implement variablelist children *
 - handle preface correctly
-- table width
-- table col widths
-- inline formatting in table cell content
-- verse blockquote
-- citetitle and attribute on blockquote
-- list continuation doesn't get added if literallayout is delimited
-- qanda list (i.e., qandaset)
-- callouts (i.e, calloutlist)
-- list ids
-- make char for emphasis quoting an option
+- implement inline formatting in table cell content *
+- implement citetitle and attribute on blockquote *
+- list continuation doesn't get added if literallayout is delimited (bug) *
+- implement qanda list (i.e., qandaset) *
+- implement callouts (i.e, calloutlist) *
+- implement list IDs *
+- implement nested lists (currently using same level) *
+- text after variablelist inside same paragraph gets adjoined to text of last item (bug) *
+- honor table width
+- honor table col widths
+- implement verse blockquote
+- make character used for emphasis quoting an option
 - make literal paragraph indent size an option
-- try to use + for literal when possible
-- nested lists (currently using same level)
-- cleaner solution for skipping title node
-- text after variablelist inside same paragraph gets adjoined to text of last item
+- try to set leveloffset only once
+- try to use + for literal (passthrough) when possible
+- find cleaner solution for skipping title node
 - make a function for detecting need for unconstrained formatting marks
-- don't start output document with blank line if input document does not start with section
+- don't start output document with blank line if input document does not start with section *
+
+\* convert to issues
 
 == Test cases
 
