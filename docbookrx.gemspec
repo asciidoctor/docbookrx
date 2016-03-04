@@ -13,7 +13,7 @@ Gem::Specification.new do |s|
 
   s.files = Dir['lib/*', 'lib/*/**']
   s.executables = ['docbookrx']
-  s.extra_rdoc_files = Dir['README.doc', 'LICENSE']
+  s.extra_rdoc_files = Dir['README.adoc', 'LICENSE']
   s.require_paths = ['lib']
 
   s.add_runtime_dependency 'nokogiri', '~> 1.6.7'
