@@ -1,24 +1,34 @@
 = WORKLOG
 
-== TODO
+== TODO TASKS
 
-- only use nested elements on listitem if first element in paragraph; otherwise, treat as inline text *
-- create proper API; tuck inside a Ruby module *
-- make dsl block for adjoining children inside delimited block
-- set default attributes for article doctype *
-- add option to drop role names for literals *
+=== TRACKED TODO TASKS
+
+NOTE: All issues in this section have a matching tracker bug created in this project to contain work and contributions.
+
+- only use nested elements on listitem if first element in paragraph; otherwise, treat as inline text
+- create proper API; tuck inside a Ruby module
+- set default attributes for article doctype
+- add option to drop role names for literals
+- implement variablelist children
+- implement inline formatting in table cell content
+- implement citetitle and attribute on blockquote
+- list continuation doesn't get added if literallayout is delimited (bug)
+- implement qanda list (i.e., qandaset)
+- implement callouts (i.e, calloutlist)
+- implement list IDs
+- implement nested lists (currently using same level)
+- text after variablelist inside same paragraph gets adjoined to text of last item (bug)
+- don't start output document with blank line if input document does not start with section
+
+=== UNTRACKED TODO NOTES
+
+NOTE: All issues in this section are pending tracker bug creation, and will be converted in subsequent backlog grooming sessions.
+
 - introduce entity_ref?, comment?, pi? methods instead of comparing type to a constant (mixin if necessary)
 - make level shifting configurable (or auto-detectable?)
-- implement variablelist children *
+- make dsl block for adjoining children inside delimited block
 - handle preface correctly
-- implement inline formatting in table cell content *
-- implement citetitle and attribute on blockquote *
-- list continuation doesn't get added if literallayout is delimited (bug) *
-- implement qanda list (i.e., qandaset) *
-- implement callouts (i.e, calloutlist) *
-- implement list IDs *
-- implement nested lists (currently using same level) *
-- text after variablelist inside same paragraph gets adjoined to text of last item (bug) *
 - honor table width
 - honor table col widths
 - implement verse blockquote
@@ -28,9 +38,6 @@
 - try to use + for literal (passthrough) when possible
 - find cleaner solution for skipping title node
 - make a function for detecting need for unconstrained formatting marks
-- don't start output document with blank line if input document does not start with section *
-
-\* convert to issues
 
 == Test cases
 
