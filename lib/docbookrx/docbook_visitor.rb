@@ -839,7 +839,7 @@ class DocbookVisitor
     row1 = body.at_css '> row'
     row1_cells = row1.elements
     numcols.times do |i|
-      next if !(element = row1_cells[i].elements.first)
+      next if (row1_cells[i].nil? || !(element = row1_cells[i].elements.first))
       case element.name
       when 'literallayout'
         cols[i] = %(#{cols[i]}*l)
