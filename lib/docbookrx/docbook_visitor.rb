@@ -1,4 +1,5 @@
 module Docbookrx
+
 class DocbookVisitor
   # transfer node type constants from Nokogiri
   ::Nokogiri::XML::Node.constants.grep(/_NODE$/).each do |sym|
@@ -13,6 +14,9 @@ class DocbookVisitor
   TrailingEndlinesRx = /\n+\z/
   FirstLineIndentRx = /\A[[:blank:]]*/
   WrappedIndentRx = /\n[[:blank:]]*/
+  OnlyWhitespaceRx = /\A\s*\Z/m
+
+  EmptyString = String.new("")
 
   EOL = "\n"
 
@@ -168,8 +172,9 @@ class DocbookVisitor
 
     if node.is_a? ::Nokogiri::XML::Node
       append_blank_line
+      last_line = lines.length
       proceed node
-      @lines.pop
+      @lines.pop(lines.length-last_line+1)
     else
       nil
     end
@@ -213,6 +218,22 @@ class DocbookVisitor
     @lines << line
   end
 
+  def format_append_line node, suffix=""
+    text = format_text node
+    line = text.shift(1)[0]
+    append_line line + suffix
+    lines.concat(text) unless text.empty?
+    text
+  end
+
+  def format_append_text node, prefix="", suffix=""
+    text = format_text node
+    line = text.shift(1)[0]
+    append_text prefix + line + suffix
+    lines.concat(text) unless text.empty?
+    text
+  end
+
   def append_blank_line
     if @continuation
       @continuation = false
@@ -226,7 +247,8 @@ class DocbookVisitor
 
   def append_block_title node, prefix = nil
     if (title_node = (node.at_css '> title') || (node.at_css '> info > title'))
-      title = format_text title_node
+      text = format_text title_node
+      title = text.shift(1)[0];
       leading_char = '.'
       # special case for <itemizedlist role="see-also-list"><title>:
       # omit the prefix '.' as we want simple text on a bullet, not a heading
@@ -234,6 +256,7 @@ class DocbookVisitor
         leading_char = nil
       end
       append_line %(#{leading_char}#{prefix}#{unwrap_text title})
+      lines.concat text unless text.empty?
       @adjoin_next = true
       true
     else
@@ -410,11 +433,13 @@ class DocbookVisitor
     level = node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
     append_line '[float]'
-    title = format_text node
+    text = format_text node
+    title = text.shift(1)[0];
     if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
     end
     append_line %(#{'=' * level} #{unwrap_text title})
+    lines.concat text unless text.empty?
     false
   end
 
@@ -433,7 +458,8 @@ class DocbookVisitor
       if (subtitle_node = (node.at_css '> subtitle') || (node.at_css '> info > subtitle'))
         title_node.inner_html += %(: #{subtitle_node.inner_html})
       end
-      format_text title_node
+      text = format_text title_node
+      text.shift(1)[0]
     else
       warn %(No title found for section node: #{node})
       'Unknown Title!'
@@ -442,6 +468,7 @@ class DocbookVisitor
       append_line %([[#{id}]])
     end
     append_line %(#{'=' * @level} #{unwrap_text title})
+    lines.concat(text) unless text.nil? || text.empty?
     yield if block_given?
     if (abstract_node = (node.at_css '> info > abstract'))
       append_line
@@ -526,12 +553,16 @@ class DocbookVisitor
     append_blank_line
     append_block_title node
     if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
+      text = format_text child
+      labelText = text.shift(1)[0]
       if @runin_admonition_label
-        append_line %(#{label}: #{format_text child})
+        append_line %(#{label}: #{labelText})
+        lines.concat(text)
       else
         append_line %([#{label}])
-        append_line (format_text child)
+        append_line labelText
       end
+      lines.concat(text)
     else
       append_line %([#{label}])
       append_line '===='
@@ -587,12 +618,14 @@ class DocbookVisitor
   # FIXME this method needs cleanup, remove hardcoded logic!
   def visit_listitem node
     elements = node.elements.to_a
-    item_text = if elements.size > 0
+    text = if elements.size > 0
       format_text elements.shift
     else
       format_text node
     end
-    
+
+    item_text = text.shift(1)[0]
+
     # do we want variable depths of bullets?
     depth = (node.ancestors.length - 4)
     # or static bullet depths
@@ -615,6 +648,11 @@ class DocbookVisitor
       end
     end
 
+    unless text.empty?
+      append_line '+'
+      lines.concat(text)
+    end
+
     unless elements.empty?
       elements.each_with_index do |child, i|
         unless i == 0 && child.name == 'literallayout'
@@ -623,7 +661,7 @@ class DocbookVisitor
         end
         child.accept self
       end
-      append_blank_line
+      append_blank_line unless lines.last.empty?
     end
     false
   end
@@ -632,12 +670,15 @@ class DocbookVisitor
     # FIXME adds an extra blank line before first item
     #append_blank_line unless (previous = node.previous_element) && previous.name == 'title'
     append_blank_line
-    append_line %(#{format_text(node.at_css node, '> term')}::)
-    item_text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
-    if item_text
+    text = format_text(node.at_css node, '> term')
+    append_line %(#{text.shift(1)[0]}::)
+    lines.concat(text) unless text.empty?
+    text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
+    unless text.nil? || (item_text = text.shift(1)[0]).empty?
       item_text.split(EOL).each do |line|
         append_line %(  #{line})
       end
+      lines.concat(text)
     end
 
     # support listitem figures in a listentry
@@ -660,7 +701,7 @@ class DocbookVisitor
   end
 
   def visit_glossterm node
-    append_line %(#{format_text node}::)
+    format_append_line node, "::"
     false
   end
 
@@ -765,7 +806,7 @@ class DocbookVisitor
       append_line '[example]'
       # must reset adjoin_next in case block title is placed
       @adjoin_next = false
-      append_line (format_text child)
+      format_append_line child
     else
       append_line '===='
       @adjoin_next = true
@@ -787,7 +828,7 @@ class DocbookVisitor
     end
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[sidebar]'
-      append_line format_text child
+      format_append_line child
     else
       append_line '****'
       @adjoin_next = true
@@ -808,7 +849,7 @@ class DocbookVisitor
     end
     if elements.size == 1 && PARA_TAG_NAMES.include?((child = elements.first).name)
       append_line '[quote]'
-      append_line format_text child
+      format_append_line child
     else
       append_line '____'
       @adjoin_next = true
@@ -895,7 +936,18 @@ class DocbookVisitor
 
   ### Inline node visitors
 
+  def strip_whitespace text
+    wsMatch = text.match(OnlyWhitespaceRx)
+    if wsMatch != nil && wsMatch.size > 0
+      return EmptyString
+    end
+    text.gsub(LeadingEndlinesRx, '')
+      .gsub(WrappedIndentRx, @preserve_line_wrap ? EOL : ' ')
+      .gsub(TrailingEndlinesRx, '')
+  end
+
   def visit_text node
+
     in_para = PARA_TAG_NAMES.include?(node.parent.name) || node.parent.name == 'phrase'
     is_first = !node.previous_element
     # drop text if empty unless we're processing a paragraph
@@ -905,9 +957,7 @@ class DocbookVisitor
         leading_space_match = text.match LeadingSpaceRx
         # strips surrounding endlines and indentation on normal paragraphs
         # TODO factor out this whitespace processing
-        text = text.gsub(LeadingEndlinesRx, '')
-            .gsub(WrappedIndentRx, @preserve_line_wrap ? EOL : ' ')
-            .gsub(TrailingEndlinesRx, '')
+        text = strip_whitespace text
         if is_first
           text = text.lstrip
         elsif leading_space_match && !!(text !~ LeadingSpaceRx)
@@ -973,47 +1023,53 @@ class DocbookVisitor
   def visit_xref node
     linkend = node.attr 'linkend'
     id = @normalize_ids ? (normalize_id linkend) : linkend
-    if (label = format_text node).empty?
+    text = format_text node
+    label = text.shift(1)[0]
+    if label.empty?
       append_text %(<<#{id}>>)
     else
       append_text %(<<#{id},#{lazy_quote label}>>)
     end
+    lines.concat(text) unless text.empty?
     false
   end
 
   def visit_phrase node
+    text = format_text node
+    phText = text.shift(1)[0]
     if node.attr 'role'
       # FIXME for now, double up the marks to be sure we catch it
-      append_text %([#{node.attr 'role'}]###{format_text node}##)
+      append_text %([#{node.attr 'role'}]###{phText}##)
     else
-      append_text %(#{format_text node})
+      append_text %(#{phText})
     end
+    lines.concat(text) unless text.empty?
     false
   end
 
   def visit_foreignphrase node
-    append_text format_text node
+    format_append_text node
   end
 
   alias :visit_attribution :proceed
 
   def visit_quote node
-    append_text %("`#{format_text node}`")
+    format_append_text node, '"`', '`"'
   end
 
   def visit_emphasis node
     quote_char = node.attr('role') == 'strong' ? '*' : '_'
-    append_text %(#{quote_char}#{format_text node}#{quote_char})
+    format_append_text node, (quote_char * times), (quote_char * times)
     false
   end
 
   def visit_remark node
-    append_text %(##{format_text node}#)
+    format_append_text node, "##", "#"
     false
   end
 
   def visit_trademark node
-    append_text %(#{format_text node}(TM))
+    format_append_text node, "#", "(TM)"
     false
   end
 
