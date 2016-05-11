@@ -523,4 +523,21 @@ So there should be continuations!
 
     expect(output).to include(expected)
   end
+
+  it 'should convert emphasis bold elements correctly' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <para><emphasis role="bold">Singleton strategy</emphasis>- instructs RuntimeManager to do stuff</para>
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+*Singleton strategy*- instructs RuntimeManager to do stuff
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end

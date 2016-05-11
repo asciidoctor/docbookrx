@@ -1075,7 +1075,8 @@ class DocbookVisitor
   end
 
   def visit_emphasis node
-    quote_char = node.attr('role') == 'strong' ? '*' : '_'
+    roleAttr = node.attr('role')
+    quote_char = (roleAttr == 'strong' || roleAttr == 'bold') ? '*' : '_' 
     times = 1
     if((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
       ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
