@@ -90,6 +90,7 @@ class DocbookVisitor
       opts.fetch :preserve_line_wrap, true
     end
     @delimit_source = opts.fetch :delimit_source, true
+    @initial_list_depth = 0
   end
 
   ## Traversal methods
@@ -98,8 +99,6 @@ class DocbookVisitor
   def visit node
     return if node.type == COMMENT_NODE
     return if node.instance_variable_get :@skip
-
-    before_traverse if (at_root = (node == node.document.root)) && (respond_to? :before_traverse)
 
     name = node.name
     visit_method_name = case node.type
@@ -127,6 +126,8 @@ class DocbookVisitor
       end
     end
 
+    before_traverse node, visit_method_name if (respond_to? :before_traverse)
+
     result = if respond_to? visit_method_name
       send visit_method_name, node
     elsif respond_to? :default_visit
@@ -134,7 +135,7 @@ class DocbookVisitor
     end
 
     traverse_children node if result == true
-    after_traverse if at_root && (respond_to? :after_traverse)
+    after_traverse node, visit_method_name if (respond_to? :after_traverse)
   end
 
   def traverse_children node, opts = {}
@@ -280,17 +281,33 @@ class DocbookVisitor
 
   ## Lifecycle callbacks
 
-  #def before_traverse
-  #end
+  def before_traverse node, method
+    case method.to_s
+    when "visit_itemizedlist", "visit_orderedlist"
+      if @initial_list_depth == 0
+        @initial_list_depth = node.ancestors.length
+      end
+    end
+  end
 
-  def after_traverse
-    if @requires_index
-      append_blank_line
-      append_line 'ifdef::backend-docbook[]'
-      append_line '[index]'
-      append_line '== Index'
-      append_line '// Generated automatically by the DocBook toolchain.'
-      append_line 'endif::backend-docbook[]'
+  def after_traverse node, method
+    at_root = (node == node.document.root)
+    if at_root
+      if @requires_index
+        append_blank_line
+        append_line 'ifdef::backend-docbook[]'
+        append_line '[index]'
+        append_line '== Index'
+        append_line '// Generated automatically by the DocBook toolchain.'
+        append_line 'endif::backend-docbook[]'
+      end
+    else
+      case method.to_s
+      when "visit_itemizedlist", "visit_orderedlist"
+        if @initial_list_depth == node.ancestors.length
+          @initial_list_depth = 0
+        end
+      end
     end
   end
 
@@ -616,10 +633,8 @@ class DocbookVisitor
 
     item_text = text.shift(1)[0]
 
-    # do we want variable depths of bullets?
-    depth = (node.ancestors.length - 4)
-    # or static bullet depths
-    depth = 1
+    # variable depths of bullets ( /2 because it's always a listitem in an {itemized,ordered}list)
+    depth = (node.ancestors.length - @initial_list_depth)/2 + 1;
 
     marker = (node.parent.name == 'orderedlist' || node.parent.name == 'procedure' ? '.' * depth : 
       (node.parent.name == 'stepalternatives' ? 'a.' : '*' * depth))
@@ -645,7 +660,7 @@ class DocbookVisitor
 
     unless elements.empty?
       elements.each_with_index do |child, i|
-        unless i == 0 && child.name == 'literallayout'
+        unless i == 0 && (child.name == 'literallayout' || child.name == 'itemizedlist' || child.name == 'orderedlist')
           append_line '+'
           @continuation = true
         end

@@ -540,4 +540,109 @@ So there should be continuations!
 
     expect(output).to include(expected)
   end
+
+  it 'should convert nested listitems correctly' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <itemizedlist>
+    <listitem>
+      <para>simple</para>
+    </listitem>
+    <listitem>
+      <para>compact</para>
+      <itemizedlist>
+        <listitem>
+          <para>design</para>
+        </listitem>
+        <listitem>
+          <para>value</para>
+        </listitem>
+      </itemizedlist>
+    </listitem>
+    <listitem>
+      <para>orcas</para>
+
+      <orderedlist>
+        <listitem>
+          <para>tuna</para>
+
+          <itemizedlist>
+            <listitem>
+              <para>squid</para>
+
+              <orderedlist>
+                <listitem>
+                  <para>shrimp</para>
+                </listitem>
+              </orderedlist>
+
+            </listitem>
+          </itemizedlist>
+
+        </listitem>
+        <listitem>
+          <para>manta rays</para>
+        </listitem>
+      </orderedlist>
+
+    </listitem>
+  </itemizedlist>
+  <para>break!</para>
+  <itemizedlist>
+    <listitem>
+      <para>layer</para>
+    </listitem>
+    <listitem>
+      <para>cake</para>
+      <itemizedlist>
+        <listitem>
+          <para>is a</para>
+          <itemizedlist>
+            <listitem>
+              <para>great film!</para>
+            </listitem>
+          </itemizedlist>
+        </listitem>
+      </itemizedlist>
+    </listitem>
+  <itemizedlist>
+</article>
+    EOS
+
+    expected = <<-EOS
+
+* simple
+* compact
+
+** design
+** value
+
+* orcas
+
+.. tuna
+
+*** squid
+
+.... shrimp
+
+.. manta rays
+
+
+break!
+
+* layer
+* cake
+
+** is a
+
+*** great film!
+
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
 end
