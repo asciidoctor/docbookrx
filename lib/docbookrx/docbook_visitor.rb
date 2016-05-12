@@ -836,15 +836,24 @@ class DocbookVisitor
 
   def process_table node
     numcols = (node.at_css '> tgroup').attr('cols').to_i
+    unless (row_node = (node.at_css '> tgroup > thead > row')).nil?
+      if (numheaders = row_node.elements.length) != numcols
+        title = " \'" + ((title_node = (node.at_css '> title')).nil? ? "" : title_node.children[0].text) 
+                + "\'"
+        warn %(#{numcols} columns specified in table#{title}, but only #{numheaders} headers)
+      end
+    end
     cols = ('1' * numcols).split('')
     body = node.at_css '> tgroup > tbody'
-    row1 = body.at_css '> row'
-    row1_cells = row1.elements
-    numcols.times do |i|
-      next if !(element = row1_cells[i].elements.first)
-      case element.name
-      when 'literallayout'
-        cols[i] = %(#{cols[i]}*l)
+    unless body.nil?
+      row1 = body.at_css '> row'
+      row1_cells = row1.elements
+      numcols.times do |i|
+        next if (row1_cells[i].nil? || !(element = row1_cells[i].elements.first))
+        case element.name
+        when 'literallayout'
+          cols[i] = %(#{cols[i]}*l)
+        end
       end
     end
 

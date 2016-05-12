@@ -416,4 +416,40 @@ Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-2003032
 
     expect(output).to include(expected)
   end
+
+  it 'should deal with incorrect numcols values' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <table>
+    <title>Control parameters</title>
+    <tgroup cols="5">
+      <thead>
+        <row>
+          <entry>Apple</entry>
+          <entry>Bear</entry>
+          <entry>Carrot</entry>
+          <entry>Dam</entry>
+        </row>
+      </thead>
+    </tgroup>
+  </table>
+</article>
+    EOS
+   expected = <<-EOS.rstrip
+.Control parameters
+[cols="1,1,1,1,1", options="header"]
+|===
+| Apple
+| Bear
+| Carrot
+| Dam
+|===
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end
