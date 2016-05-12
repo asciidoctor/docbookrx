@@ -303,7 +303,8 @@ void qsort (void *dataptr[],
 Please note the fruit: 
 ----
 Apple, oranges and bananas
-----  
+----
+
 ====
     EOS
 
@@ -447,7 +448,77 @@ Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-2003032
 | Dam
 |===
     EOS
+    output = Docbookrx.convert input
 
+    expect(output).to include(expected)
+  end
+
+  it 'should convert nested program listings in listitems correctly' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <para>Some examples:
+    <itemizedlist>
+      <listitem>
+        <para>get all process definitions</para>
+        <para>
+          <programlisting>Collection mousse = service.getChocolate();</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>get active process instances
+          <programlisting>Collection rum = service.getRaisin();</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>get tasks assigned to john
+          <programlisting>List moonshine = service.getCinnamon();</programlisting>
+        </para>
+      </listitem>
+      <listitem>
+        <para>this listitem has....</para>
+        <para>...multiple elements!</para>
+        <para>So there should be continuations!</para>
+    </itemizedlist>
+  </para>
+</article>
+    EOS
+
+    expected = <<-EOS
+
+Some examples: 
+
+* get all process definitions
++
+
+[source]
+----
+Collection mousse = service.getChocolate();
+----
+
+
+* get active process instances 
++
+[source]
+----
+Collection rum = service.getRaisin();
+----
+
+* get tasks assigned to john 
++
+[source]
+----
+List moonshine = service.getCinnamon();
+----
+
+* this listitem has....
++
+...multiple elements!
++
+So there should be continuations!
+   EOS
+    expected += " "
     output = Docbookrx.convert input
 
     expect(output).to include(expected)
