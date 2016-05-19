@@ -298,8 +298,7 @@ class DocbookVisitor
     when "visit_table", "visit_informaltable"
       @in_table = true
     when "visit_emphasis"
-      roleAttr = node.attr('role')
-      marker = (roleAttr == 'strong' || roleAttr == 'bold') ? '*' : '_' 
+      marker = get_emphasis_quote_char node
       @nested_formatting.push marker
     when "process_literal"
       @nested_formatting.push '+'
@@ -1019,7 +1018,7 @@ class DocbookVisitor
         text = text.gsub(/\|/, '\|')
       end
       if ! @nested_formatting.empty?
-        if text.start_with? '_', '*','+','`'
+        if text.start_with? '_', '*','+','`','#'
           text = '\\' + text
         end
       end
@@ -1115,12 +1114,23 @@ class DocbookVisitor
   end
 
   def visit_emphasis node
-    roleAttr = node.attr('role')
-    quote_char = (roleAttr == 'strong' || roleAttr == 'bold') ? '*' : '_' 
+    quote_char = get_emphasis_quote_char node
     times = (adjacent_character node) ? 2 : 1;
 
     format_append_text node, (quote_char * times), (quote_char * times)
     false
+  end
+
+  def get_emphasis_quote_char node
+    roleAttr = node.attr('role')
+    case roleAttr
+    when 'strong', 'bold'
+      '*'
+    when 'marked'
+      '#'
+    else
+      '_'
+    end
   end
 
   def adjacent_character node

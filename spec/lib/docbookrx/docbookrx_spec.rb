@@ -745,13 +745,23 @@ break!
 * _italics_
 * **bold, __bold italics__**__, and italics__
 * __italics, **italicized bold**__**, and bold**
-* _empha-``__\#{code}__``-sized_
+* _empha-``__\\\#{code}__``-sized_
 * *bold-``**code**``*
 * Really hard to fix elegantly.. and an outer edge case.
 * `CodeNormal__Italics__**Bold**__**Ridiculous**__`
 * `\\_underscores_in_code_`
 * `\\*starry*code**`
     EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert escape hashes in literal or formatted text' do
+    input = '<para><code><emphasis>#{expression}</emphasis></code></para>'
+
+    expected = '`__\#{expression}__`'
+
     output = Docbookrx.convert input
 
     expect(output).to include(expected)
