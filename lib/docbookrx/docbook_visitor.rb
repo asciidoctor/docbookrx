@@ -465,7 +465,7 @@ class DocbookVisitor
   ### Section node visitors
 
   def visit_bridgehead node
-    level = node.attr('renderas').sub('sect', '').to_i + 1
+    level = node.attr('renderas').nil? ? @level : node.attr('renderas').sub('sect', '').to_i + 1
     append_blank_line
     append_line '[float]'
     text = format_text node

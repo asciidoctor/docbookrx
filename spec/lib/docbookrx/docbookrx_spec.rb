@@ -767,4 +767,50 @@ break!
     expect(output).to include(expected)
   end
 
+  it 'should convert bridgeheads without renderas attributes' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+    <section>
+      <title>Section title</title>
+      <bridgehead>Section bridgehead</bridgehead>
+      <bridgehead renderas="sect3">level-three</bridgehead>
+
+      <section>
+        <title>subsub</title>
+        <bridgehead>bridgebridge</bridgehead>
+        <bridgehead renderas="sect1">level-one</bridgehead>
+      </section>
+
+    </section>
+  </part>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+== Section title
+
+[float]
+=== Section bridgehead
+
+[float]
+==== level-three
+
+=== subsub
+
+[float]
+==== bridgebridge
+
+[float]
+== level-one
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
 end
