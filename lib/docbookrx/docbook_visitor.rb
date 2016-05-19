@@ -15,6 +15,8 @@ class DocbookVisitor
   FirstLineIndentRx = /\A[[:blank:]]*/
   WrappedIndentRx = /\n[[:blank:]]*/
   OnlyWhitespaceRx = /\A\s*\Z/m
+  PrevAdjacentChar = /\S\Z/
+  NextAdjacentChar = /\A\S/
 
   EmptyString = String.new("")
 
@@ -92,6 +94,7 @@ class DocbookVisitor
     @delimit_source = opts.fetch :delimit_source, true
     @initial_list_depth = 0
     @in_table = false
+    @nested_formatting = []
   end
 
   ## Traversal methods
@@ -294,6 +297,12 @@ class DocbookVisitor
       end
     when "visit_table", "visit_informaltable"
       @in_table = true
+    when "visit_emphasis"
+      roleAttr = node.attr('role')
+      marker = (roleAttr == 'strong' || roleAttr == 'bold') ? '*' : '_' 
+      @nested_formatting.push marker
+    when "process_literal"
+      @nested_formatting.push '+'
     end
   end
 
@@ -316,6 +325,8 @@ class DocbookVisitor
         end
       when "visit_table", "visit_informaltable"
         @in_table = false
+      when "visit_emphasis", "process_literal"
+        @nested_formatting.pop
       end
     end
   end
@@ -978,7 +989,6 @@ class DocbookVisitor
   def visit_text node
 
     in_para = PARA_TAG_NAMES.include?(node.parent.name) || node.parent.name == 'phrase'
-    is_first = !node.previous_element
     # drop text if empty unless we're processing a paragraph
     unless node.text.rstrip.empty? && !in_para
       text = node.text
@@ -987,6 +997,7 @@ class DocbookVisitor
         # strips surrounding endlines and indentation on normal paragraphs
         # TODO factor out this whitespace processing
         text = strip_whitespace text
+        is_first = !node.previous_element
         if is_first
           text = text.lstrip
         elsif leading_space_match && !!(text !~ LeadingSpaceRx)
@@ -1006,6 +1017,11 @@ class DocbookVisitor
       # escape |'s in table cell text
       if @in_table
         text = text.gsub(/\|/, '\|')
+      end
+      if ! @nested_formatting.empty?
+        if text.start_with? '_', '*','+','`'
+          text = '\\' + text
+        end
       end
       append_text text, true
     end
@@ -1101,14 +1117,31 @@ class DocbookVisitor
   def visit_emphasis node
     roleAttr = node.attr('role')
     quote_char = (roleAttr == 'strong' || roleAttr == 'bold') ? '*' : '_' 
-    times = 1
-    if((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
-      ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
-      times = 2
-    end
+    times = (adjacent_character node) ? 2 : 1;
 
     format_append_text node, (quote_char * times), (quote_char * times)
     false
+  end
+
+  def adjacent_character node
+    if @nested_formatting.length > 1
+      true
+    elsif ((prev_node = node.previous) && prev_node.type == TEXT_NODE && PrevAdjacentChar =~ prev_node.text) ||
+          ((next_node = node.next) && next_node.type == TEXT_NODE && NextAdjacentChar =~ next_node.text)
+      true
+    elsif (prev_node = node.previous) && ! prev_node.children.empty? && 
+          ( (LITERAL_NAMES.include? prev_node.name) || ("emphasis".eql? prev_node.name) ) && 
+          (adj_child = prev_node.children[0]).type == TEXT_NODE && PrevAdjacentChar =~ adj_child.text
+      true
+    elsif (next_node = node.next) && (! next_node.children.empty? ) && 
+          ( (LITERAL_NAMES.include? next_node.name) || ("emphasis".eql? next_node.name) ) && 
+          (adj_child = next_node.children[0]).type == TEXT_NODE && NextAdjacentChar =~ adj_child.text
+      true
+    elsif (! lines.last.empty?) && (! lines.last.end_with? "\s","\n","\t","\f")
+      true
+    else
+      false
+    end
   end
 
   def visit_remark node
@@ -1207,13 +1240,39 @@ class DocbookVisitor
       end
       append_text %([#{shortname}])
     end
-    if ((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
-      ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
-      append_text %(``#{node.text}``)
-    else
-      # FIXME be smart about when to use ` vs `` or `+...+`
-      append_text %(`#{node.text}`)
+  
+    times = (adjacent_character node) ? 2 : 1;
+    literal_char = ('`' * times)
+    other_format_start = other_format_end = ''
+
+    if @nested_formatting.length > 1 
+      emphasis = false
+      bold = false
+      for i in 0..@nested_formatting.length-2
+        case @nested_formatting[i]
+        when '_'
+          emphasis = true
+        when '*'
+          bold = true
+        end
+        if emphasis && bold
+          break
+        end
+      end
+  
+      if emphasis && bold
+        other_format_start = "**__"
+        other_format_end = "__**"
+      elsif emphasis
+        other_format_start = other_format_end = "__"
+      elsif bold
+        other_format_start = other_format_end = "**"
+      end
     end
+
+
+    format_append_text node, literal_char + other_format_start, other_format_end + literal_char
+
     false 
   end
 

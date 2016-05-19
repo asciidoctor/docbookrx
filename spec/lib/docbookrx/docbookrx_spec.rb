@@ -204,7 +204,7 @@ All DocBook V5.0 elements are in the namespace http://docbook.org/ns/docbook.'
     EOS
 
     expected = <<-EOS.rstrip
-`Apples`, `oranges`, `bananas`, `pears`, `grapes`, `mangos`, `kiwis`, and `persimmons`.
+``Apples``, ``oranges``, ``bananas``, ``pears``, ``grapes``, ``mangos``, ``kiwis``, and ``persimmons``.
     EOS
 
     output = Docbookrx.convert input
@@ -534,7 +534,7 @@ So there should be continuations!
     EOS
 
     expected = <<-EOS.rstrip
-*Singleton strategy*- instructs RuntimeManager to do stuff
+**Singleton strategy**- instructs RuntimeManager to do stuff
     EOS
     output = Docbookrx.convert input
 
@@ -688,6 +688,69 @@ break!
 |unknown
 |The quantum postman
 |===
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should correctly nest formatting (bold, emphasized, literal) in text' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+   <itemizedlist>
+      <listitem>
+        <para><emphasis role="bold">bold</emphasis></para>
+      </listitem>
+      <listitem>
+        <para><code>code</code></para>
+      </listitem>
+      <listitem>
+        <para><emphasis>italics</emphasis></para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">bold, <emphasis>bold italics</emphasis></emphasis><emphasis>, and italics</emphasis></para>
+      </listitem>
+      <listitem>
+        <para><emphasis>italics, <emphasis role="bold">italicized bold</emphasis></emphasis><emphasis role="bold">, and bold</emphasis></para>
+      </listitem>
+      <listitem>
+        <para><emphasis>empha-<code>\#{code}</code>-sized</emphasis></para>
+      </listitem>
+      <listitem>
+        <para><emphasis role="bold">bold-<code>code</code></emphasis></para>
+      </listitem>
+      <listitem>
+        <para>Really hard to fix elegantly.. and an outer edge case.<!-- <emphasis>Not</emphasis><emphasis role="bold">Bold<emphasis>But<code>Ridiculous</code></emphasis></emphasis> --></para>
+      </listitem>
+      <listitem>
+        <para><code>CodeNormal<emphasis>Italics</emphasis><emphasis role="bold">Bold</emphasis><emphasis><emphasis role="bold">Ridiculous</emphasis></emphasis></code></para>
+      </listitem>
+      <listitem>
+        <para><code>_underscores_in_code_</code></para>
+      </listitem>
+      <listitem>
+        <para><code>*starry*code**</code></para>
+      </listitem>
+    </itemizedlist>
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+* *bold*
+* `code`
+* _italics_
+* **bold, __bold italics__**__, and italics__
+* __italics, **italicized bold**__**, and bold**
+* _empha-``__\#{code}__``-sized_
+* *bold-``**code**``*
+* Really hard to fix elegantly.. and an outer edge case.
+* `CodeNormal__Italics__**Bold**__**Ridiculous**__`
+* `\\_underscores_in_code_`
+* `\\*starry*code**`
     EOS
     output = Docbookrx.convert input
 
