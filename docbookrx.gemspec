@@ -6,9 +6,9 @@ Gem::Specification.new do |s|
   s.version = Docbookrx::Identity.version
   s.authors = ['Dan Allen']
   s.email = ['dan.j.allen@gmail.com']
-  s.homepage = 'https://github.com/opendevise/docbookrx'
+  s.homepage = 'https://github.com/asciidoctor/docbookrx'
   s.summary = 'A DocBook to AsciiDoc converter'
-  s.description = 'The prescription you need to get rid of your DocBook problem. Converts DocBook XML to AsciiDoc.'
+  s.description = 'The prescription for all your DocBook pain. Converts DocBook XML to AsciiDoc.'
   s.license = 'MIT'
 
   s.files = Dir['lib/*', 'lib/*/**']

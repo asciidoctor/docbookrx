@@ -1,4 +1,4 @@
-= DocBookRx: The ℞ for all your DocBook pains
+= DocBookRx: The ℞ for all your DocBook pain
 Dan Allen <https://github.com/mojavelinux>
 // Settings:
 :idprefix:
@@ -8,13 +8,13 @@ Dan Allen <https://github.com/mojavelinux>
 :project-name: DocBookRx
 :project-handle: docbookrx
 // URIs:
-:uri-repo: https://github.com/opendevise/docbookrx
+:uri-repo: https://github.com/mojavelinux/docbookrx
 :uri-asciidoc: http://asciidoc.org
 :uri-docbook: http://docbook.org
 :uri-rvm: http://rvm.io
 :uri-install-rvm: https://rvm.io/rvm/install
 
-The prescription (℞) you need to get rid of your DocBook pains.
+The prescription (℞) you need to get rid of your DocBook pain.
 Converts from DocBook XML (hell) to AsciiDoc.
 //Extracts AsciiDoc from DocBook XML (hell).
 
