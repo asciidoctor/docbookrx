@@ -4,19 +4,33 @@ Dan Allen <https://github.com/mojavelinux>
 :idprefix:
 :idseparator: -
 :icons: font
+ifdef::env-github,env-browser[]
+:toc: preamble
+:toclevels: 1
+endif::[]
+ifdef::env-github[]
+:status:
+:outfilesuffix: .adoc
+:!toc-title:
+endif::[]
 // Aliases:
 :project-name: DocBookRx
 :project-handle: docbookrx
 // URIs:
-:uri-repo: https://github.com/asciidoctor/docbookrx
 :uri-asciidoc: http://asciidoc.org
 :uri-docbook: http://docbook.org
+:uri-repo: https://github.com/asciidoctor/docbookrx
 :uri-rvm: http://rvm.io
-:uri-install-rvm: https://rvm.io/rvm/install
+:uri-rvm-install: https://rvm.io/rvm/install
+:uri-build-status: http://travis-ci.org/asciidoctor/docbookrx
+:img-build-status: https://img.shields.io/travis/asciidoctor/docbookrx/master.svg
 
-The prescription (℞) you need to get rid of your DocBook pain.
-Converts from DocBook XML (hell) to AsciiDoc.
-//Extracts AsciiDoc from DocBook XML (hell).
+ifdef::status[]
+image:{img-build-status}[Build Status Badge,link={uri-build-status}]
+endif::[]
+
+{project-name} (gem: *{project-handle}*) is the prescription (℞) you need to get rid of your DocBook pain.
+This tool converts DocBook XML (hell) to AsciiDoc.
 
 {project-name} is the start of a {uri-docbook}[DocBook] to {uri-asciidoc}[AsciiDoc] converter written in Ruby.
 This converter is far from perfect at the moment and some of the conversion is done hastily.
@@ -42,7 +56,7 @@ Next, switch to the project directory:
 === Prepare RVM (optional)
 
 We recommend using {uri-rvm}[RVM] when developing applications with Ruby.
-Follow the {uri-install-rvm}[installation instructions] on the RVM site to setup RVM and install Ruby.
+Follow the {uri-rvm-install}[installation instructions] on the RVM site to setup RVM and install Ruby.
 
 Once you have RVM setup, we recommend creating a new gemset to work with {project-name}:
 
