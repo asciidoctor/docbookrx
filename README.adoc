@@ -8,7 +8,7 @@ Dan Allen <https://github.com/mojavelinux>
 :project-name: DocBookRx
 :project-handle: docbookrx
 // URIs:
-:uri-repo: https://github.com/mojavelinux/docbookrx
+:uri-repo: https://github.com/asciidoctor/docbookrx
 :uri-asciidoc: http://asciidoc.org
 :uri-docbook: http://docbook.org
 :uri-rvm: http://rvm.io
