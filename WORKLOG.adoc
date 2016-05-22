@@ -12,7 +12,7 @@ NOTE: All issues in this section have a matching tracker bug created in this pro
 - add option to drop role names for literals
 - implement variablelist children
 - implement inline formatting in table cell content
-- implement citetitle and attribute on blockquote
+- implement citetitle and attribution on blockquote
 - list continuation doesn't get added if literallayout is delimited (bug)
 - implement qanda list (i.e., qandaset)
 - implement callouts (i.e, calloutlist)
