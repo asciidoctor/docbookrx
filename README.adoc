@@ -1,5 +1,5 @@
 = DocBookRx: The ℞ for all your DocBook pain
-Dan Allen <https://github.com/mojavelinux>
+Dan Allen <https://github.com/mojavelinux[@mojavelinux]>
 // Settings:
 :idprefix:
 :idseparator: -
@@ -36,12 +36,12 @@ This tool converts DocBook XML (hell) to AsciiDoc.
 This converter is far from perfect at the moment and some of the conversion is done hastily.
 The plan is to evolve it into a robust library for performing this conversion in a reliable way.
 
-== Installing the development version
+== Installing the Development Version
 
 Currently, {project-name} is only available in source form.
 You'll need to retrieve the source and run the application out the source directory.
 
-=== Retrieve the source code
+=== Retrieve the Source Code
 
 Simply copy the {uri-repo}[GitHub repository URL] and pass it to the `git clone` command:
 
@@ -65,7 +65,7 @@ Once you have RVM setup, we recommend creating a new gemset to work with {projec
 
 We like RVM because it keeps the dependencies required by various projects isolated from each other and from your system.
 
-=== Install the dependencies
+=== Install the Dependencies
 
 The dependencies needed to use {project-name} are defined in the [path]_Gemfile_ at the root of the project.
 You'll use Bundler to install these dependencies.
@@ -84,7 +84,7 @@ Then, use the `bundle` command (which is provided by the bundler gem) to install
 
 NOTE: You must invoke `bundle` from the project's root directory so it can locate the [path]_Gemfile_.
 
-== Running the converter
+== Running the Converter
 
 To run the converter, execute the launch script and pass a DocBook file to convert as the first argument.
 
@@ -95,15 +95,17 @@ The script will automatically create the output file [path]_sample.adoc_, replac
 The converter is not perfect yet, but we'll get there with your help.
 You'll can find a list of tasks that need attention listed in the WORKLOG.adoc file.
 
-== Authors
+== About this Project
+
+=== Authors
 
 *docbookrx* was written by https://github.com/mojavelinux[Dan Allen].
 
-== Credits
+=== Credits
 
 Gem structure originally created using https://github.com/bkuhlmann/gemsmith[Gemsmith].
 
-== Copyright
+=== Copyright
 
 Copyright (C) 2013-2015 Dan Allen and the Asciidoctor Project.
 Free use of this software is granted under the terms of the MIT License.
