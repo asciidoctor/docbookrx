@@ -491,12 +491,10 @@ Some examples:
 
 * get all process definitions
 +
-
 [source]
 ----
 Collection mousse = service.getChocolate();
 ----
-
 
 * get active process instances 
 +
@@ -513,9 +511,9 @@ List moonshine = service.getCinnamon();
 ----
 
 * this listitem has....
-+
++ 
 ...multiple elements!
-+
++ 
 So there should be continuations!
    EOS
     expected += " "
@@ -615,18 +613,12 @@ So there should be continuations!
 
 * simple
 * compact
-
 ** design
 ** value
-
 * orcas
-
 .. tuna
-
 *** squid
-
 .... shrimp
-
 .. manta rays
 
 
@@ -634,11 +626,8 @@ break!
 
 * layer
 * cake
-
 ** is a
-
 *** great film!
-
     EOS
     output = Docbookrx.convert input
 
@@ -772,21 +761,18 @@ break!
 <article xmlns='http://docbook.org/ns/docbook'
          xmlns:xl="http://www.w3.org/1999/xlink"
          version="5.0" xml:lang="en">
+  <section>
+    <title>Section title</title>
+    <bridgehead>Section bridgehead</bridgehead>
+    <bridgehead renderas="sect3">level-three</bridgehead>
 
     <section>
-      <title>Section title</title>
-      <bridgehead>Section bridgehead</bridgehead>
-      <bridgehead renderas="sect3">level-three</bridgehead>
-
-      <section>
-        <title>subsub</title>
-        <bridgehead>bridgebridge</bridgehead>
-        <bridgehead renderas="sect1">level-one</bridgehead>
-      </section>
-
+      <title>subsub</title>
+      <bridgehead>bridgebridge</bridgehead>
+      <bridgehead renderas="sect1">level-one</bridgehead>
     </section>
-  </part>
 
+  </section>
 </article>
     EOS
 
@@ -807,6 +793,127 @@ break!
 
 [float]
 == level-one
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should process nested admonitions and other things in lists correctly' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+  <itemizedlist>
+    <listitem>Simple text</listitem>
+    <listitem><emphasis>Not</emphasis> all of the text!</listitem>
+    <listitem><para>Simple para</para></listitem>
+    <listitem>
+        <para>Para between text</para>
+    </listitem>
+    <listitem>
+      <note>
+        <para>Note text</para>
+      </note>
+      <para>List text</para>
+    </listitem>
+    <listitem>
+      <note>
+        <para>Two</para>
+      </note>
+      <note>
+        <para>Notes</para>
+      </note>
+    </listitem>
+    <listitem>
+      <note>
+        <para>One note</para>
+      </note>
+    </listitem>
+    <listitem>
+      <para>Craziness: text and then.. </para>
+      <note>
+        <para>.. a note...</para>
+      </note>
+      <para>...and then more text?!?</para>
+    </listitem>
+    <listitem>
+      <note>
+        <para>.. a note...</para>
+      </note>
+      <itemizedlist>
+        <listitem>
+          <para>Crazier</para>
+          <itemizedlist>
+            <listitem><para>Craziest</para></listitem>
+          </itemizedlist>
+        </listitem>
+      </itemizedlist>
+      <para>Crazy</para>
+    </listitem>  
+  </itemizedlist>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+* Simple text
+* _Not_ all of the text!
+* Simple para
+* Para between text
+* {empty}
++
+
+[NOTE]
+====
+Note text
+====
++ 
+List text
+* {empty}
++
+
+[NOTE]
+====
+Two
+====
++
+
+[NOTE]
+====
+Notes
+====
+* {empty}
++
+
+[NOTE]
+====
+One note
+====
+* Craziness: text and then.. 
++
+
+[NOTE]
+====
+$$..$$ a note...
+====
++ 
+...and then more text?!?
+* {empty}
++
+
+[NOTE]
+====
+$$..$$ a note...
+====
+** Crazier
+*** Craziest
+
++ 
+Crazy
+
     EOS
     output = Docbookrx.convert input
 

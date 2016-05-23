@@ -63,6 +63,8 @@ class DocbookVisitor
 
   LITERAL_NAMES = ANONYMOUS_LITERAL_NAMES + NAMED_LITERAL_NAMES
 
+  FORMATTING_NAMES = LITERAL_NAMES + ['emphasis']
+
   KEYWORD_NAMES = ['package', 'firstterm', 'citetitle']
 
   PATH_NAMES = ['directory', 'filename', 'systemitem']
@@ -76,7 +78,6 @@ class DocbookVisitor
     @level = 1
     @skip = {}
     @requires_index = false
-    @list_index = 0
     @continuation = false
     @adjoin_next = false
     # QUESTION why not handle idprefix and idseparator as attributes (delete on read)?
@@ -92,7 +93,7 @@ class DocbookVisitor
       opts.fetch :preserve_line_wrap, true
     end
     @delimit_source = opts.fetch :delimit_source, true
-    @initial_list_depth = 0
+    @list_depth = 0
     @in_table = false
     @nested_formatting = []
   end
@@ -292,9 +293,7 @@ class DocbookVisitor
   def before_traverse node, method
     case method.to_s
     when "visit_itemizedlist", "visit_orderedlist"
-      if @initial_list_depth == 0
-        @initial_list_depth = node.ancestors.length
-      end
+      @list_depth += 1
     when "visit_table", "visit_informaltable"
       @in_table = true
     when "visit_emphasis"
@@ -319,9 +318,7 @@ class DocbookVisitor
     else
       case method.to_s
       when "visit_itemizedlist", "visit_orderedlist"
-        if @initial_list_depth == node.ancestors.length
-          @initial_list_depth = 0
-        end
+        @list_depth -= 1
       when "visit_table", "visit_informaltable"
         @in_table = false
       when "visit_emphasis", "process_literal"
@@ -589,7 +586,7 @@ class DocbookVisitor
     name = node.name
     label = name.upcase
     elements = node.elements
-    append_blank_line
+    append_blank_line unless @continuation
     append_block_title node
     append_line %([#{label}])
     append_line '===='
@@ -603,6 +600,7 @@ class DocbookVisitor
   def visit_itemizedlist node
     append_blank_line
     append_block_title node
+    append_blank_line if @list_depth == 1
     true
   end
 
@@ -621,12 +619,12 @@ class DocbookVisitor
   end
 
  def visit_orderedlist node
-    @list_index = 1
     append_blank_line
     # TODO no title?
     if (numeration = (node.attr 'numeration')) && numeration != 'arabic'
       append_line %([#{numeration}])
     end
+    append_blank_line if @list_depth == 1
     true
   end
 
@@ -643,50 +641,123 @@ class DocbookVisitor
 
   # FIXME this method needs cleanup, remove hardcoded logic!
   def visit_listitem node
-    elements = node.elements.to_a
-    text = if elements.size > 0
-      format_text elements.shift
-    else
-      format_text node
-    end
+    marker = (node.parent.name == 'orderedlist' || node.parent.name == 'procedure' ? '.' * @list_depth : 
+      (node.parent.name == 'stepalternatives' ? 'a.' : '*' * @list_depth))
+    append_text marker
 
-    item_text = text.shift(1)[0]
+    first_line = true
+    unless node.elements.empty?
 
-    # variable depths of bullets ( /2 because it's always a listitem in an {itemized,ordered}list)
-    depth = (node.ancestors.length - @initial_list_depth)/2 + 1;
-
-    marker = (node.parent.name == 'orderedlist' || node.parent.name == 'procedure' ? '.' * depth : 
-      (node.parent.name == 'stepalternatives' ? 'a.' : '*' * depth))
-    placed_bullet = false
-    item_text.split(EOL).each_with_index do |line, i|
-      line = line.gsub IndentationRx, ''
-      if line.length > 0
-        if line == '====' # ???
-          append_line %(#{line})
-        elsif !placed_bullet
-          append_line %(#{marker} #{line})
-          placed_bullet = true
-        else
-          append_line %(  #{line})
+      only_text = true
+      node.children.each do |child|
+        if ! ( ( FORMATTING_NAMES.include? child.name ) || ( child.name.eql? "text" ) )
+          only_text = false
+          break
         end
       end
-    end
 
-    unless text.empty?
-      append_line '+'
-      lines.concat(text)
-    end
+      if only_text
+        text = format_text node
+        item_text = text.shift(1)[0]
 
-    unless elements.empty?
-      elements.each_with_index do |child, i|
-        unless i == 0 && (child.name == 'literallayout' || child.name == 'itemizedlist' || child.name == 'orderedlist')
+        item_text.split(EOL).each do |line|
+          line = line.gsub IndentationRx, ''
+          if line.length > 0
+            if first_line
+              append_text %( #{line})
+            else
+              append_line %(  #{line})
+            end
+          end
+        end
+
+        unless text.empty?
           append_line '+'
-          @continuation = true
+          lines.concat(text)
         end
-        child.accept self
+      else
+        node.children.each_with_index do |child,i|
+          if ( child.name.eql? "text" ) && child.text.rstrip.empty?
+            next
+          end
+
+          local_continuation = false
+          unless i == 0 || first_line || (child.name == 'literallayout' || child.name == 'itemizedlist' || child.name == 'orderedlist')
+            append_line '+'
+            @continuation = true
+            local_continuation = true
+            first_line = true
+          end
+
+          if ( PARA_TAG_NAMES.include? child.name ) || ( child.name.eql? "text" )
+            text = format_text child
+            item_text = text.shift(1)[0]
+
+            item_text = item_text.sub(/\A\+([^\n])/, "+ \n\\1")
+            if item_text.empty? && text.empty?
+              next
+            end
+
+            item_text.split(EOL).each do |line|
+              line = line.gsub IndentationRx, ''
+              if line.length > 0
+                if first_line
+                  if local_continuation  # @continuation is reset by format_text
+                    append_line %(#{line})
+                  else
+                    append_text %( #{line})
+                  end
+                else
+                  append_line %(  #{line})
+                end
+              end
+            end
+
+            unless text.empty?
+              append_line '+' unless lines.last == "+"
+              lines.concat(text)
+            end
+          else
+            if ! FORMATTING_NAMES.include? child.name
+              if first_line && ! local_continuation
+                append_text ' {empty}' # necessary to fool asciidoctorj into thinking that this is a listitem
+              end
+              unless local_continuation || (child.name == 'literallayout' || child.name == 'itemizedlist' || child.name == 'orderedlist')
+                append_line '+'
+              end
+              @continuation = false
+            end
+            child.accept self
+            @continuation = true
+          end
+          first_line = false
+        end
       end
-      append_blank_line unless lines.last.empty?
+    else
+      text = format_text node
+      item_text = text.shift(1)[0]
+
+      item_text.split(EOL).each do |line|
+        line = line.gsub IndentationRx, ''
+        if line.length > 0
+          if first_line
+            append_text %( #{line})
+            first_line = false
+          else
+            append_line %(  #{line})
+          end
+        end
+      end
+
+      unless text.empty?
+        append_line '+'
+        lines.concat(text)
+      end
     end
+    @continuation = false
+    append_blank_line unless lines.last.empty?
+    # TODO: fix append_blank_line so that it contains line.last.empty? logic
+
     false
   end
 
@@ -1018,9 +1089,12 @@ class DocbookVisitor
         text = text.gsub(/\|/, '\|')
       end
       if ! @nested_formatting.empty?
-        if text.start_with? '_', '*','+','`','#'
+        if text.start_with? '_','*','+','`','#'
           text = '\\' + text
         end
+      end
+      if ( @lines[-1].empty? ) && ( text.start_with? '.' )
+        text = text.sub( /\A(\.+)/, "$$\\1$$" )
       end
       append_text text, true
     end
@@ -1140,11 +1214,11 @@ class DocbookVisitor
           ((next_node = node.next) && next_node.type == TEXT_NODE && NextAdjacentChar =~ next_node.text)
       true
     elsif (prev_node = node.previous) && ! prev_node.children.empty? && 
-          ( (LITERAL_NAMES.include? prev_node.name) || ("emphasis".eql? prev_node.name) ) && 
+          ( FORMATTING_NAMES.include? prev_node.name ) &&
           (adj_child = prev_node.children[0]).type == TEXT_NODE && PrevAdjacentChar =~ adj_child.text
       true
     elsif (next_node = node.next) && (! next_node.children.empty? ) && 
-          ( (LITERAL_NAMES.include? next_node.name) || ("emphasis".eql? next_node.name) ) && 
+          ( FORMATTING_NAMES.include? next_node.name ) &&
           (adj_child = next_node.children[0]).type == TEXT_NODE && NextAdjacentChar =~ adj_child.text
       true
     elsif (! lines.last.empty?) && (! lines.last.end_with? "\s","\n","\t","\f")
