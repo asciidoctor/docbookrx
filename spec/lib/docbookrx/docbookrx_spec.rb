@@ -1,3 +1,4 @@
+# coding: utf-8
 require 'spec_helper'
 
 describe 'Conversion' do
@@ -77,10 +78,15 @@ content
 
   it 'should convert uri element to uri macro' do
     input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'>
 <para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Read about <uri xlink:href="http://en.wikipedia.org/wiki/Object-relational_mapping">Object-relational mapping</uri> on Wikipedia.</para>
+<para>All DocBook V5.0 elements are in the namespace <uri>http://docbook.org/ns/docbook</uri>.</para>
+</article>
     EOS
 
-    expected = 'Read about http://en.wikipedia.org/wiki/Object-relational_mapping[Object-relational mapping] on Wikipedia.'
+    expected = 'Read about http://en.wikipedia.org/wiki/Object-relational_mapping[Object-relational mapping] on Wikipedia.
+
+All DocBook V5.0 elements are in the namespace http://docbook.org/ns/docbook.'
 
     output = Docbookrx.convert input
 
@@ -274,6 +280,115 @@ void qsort (void *dataptr[],
             int right,
             int (*comp) (void *, void *));
 ----
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert note element to NOTE' do
+    input = <<-EOS
+<note>
+  <para>
+    Please note the fruit:
+    <screen>Apple, oranges and bananas</screen>
+  </para>
+</note>
+    EOS
+
+    expected = <<-EOS.rstrip
+[NOTE]
+====
+Please note the fruit: 
+----
+Apple, oranges and bananas
+----  
+====
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should accept special section names without title' do
+    input = '<bibliography></bibliography>'
+
+    expected = '= Bibliography'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert quandaset elements to Q and A list' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'>
+<qandaset>
+<qandadiv>
+<title>Various Questions</title>
+<qandaentry xml:id="some-question">
+<question>
+<para>My question?</para>
+</question>
+<answer>
+<para>My answer!</para>
+</answer>
+</qandaentry>
+</qandadiv>
+</qandaset>
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+.Various Questions
+
+[[_some_question]]
+My question?::
+
+My answer!
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert emphasis elements to emphasized text' do
+    input = "<para><emphasis>Apple</emphasis> or <emphasis>pine</emphasis>apple.</para>"
+
+    expected = "_Apple_ or __pine__apple"
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'should convert bibliography section to bibliography section' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+<bibliography xml:id="references">
+<bibliomixed>
+<abbrev>RNCTUT</abbrev>
+Clark, James – Cowan, John – MURATA, Makoto: <title>RELAX NG Compact Syntax Tutorial</title>.
+Working Draft, 26 March 2003. OASIS. <bibliomisc><link xl:href="http://relaxng.org/compact-tutorial-20030326.html"/></bibliomisc>
+</bibliomixed>
+</bibliography>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+[bibliography]
+[[_references]]
+== Bibliography
+- [[[RNCTUT]]] 
+Clark, James – Cowan, John – MURATA, Makoto: RELAX NG Compact Syntax Tutorial.
+Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-20030326.html
     EOS
 
     output = Docbookrx.convert input

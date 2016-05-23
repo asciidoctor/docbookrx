@@ -51,7 +51,7 @@ class DocbookVisitor
 
   SECTION_NAMES = DOCUMENT_NAMES + ['chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
-  ANONYMOUS_LITERAL_NAMES = ['code', 'command', 'computeroutput', 'database', 'function', 'literal', 'tag', 'userinput']
+  ANONYMOUS_LITERAL_NAMES = ['abbrev', 'acronym', 'code', 'command', 'computeroutput', 'database', 'function', 'literal', 'tag', 'userinput']
 
   NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'exceptionname', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname']
 
@@ -79,7 +79,6 @@ class DocbookVisitor
     @normalize_ids = opts.fetch :normalize_ids, true
     @compat_mode = opts[:compat_mode]
     @attributes = opts[:attributes] || {}
-    @runin_admonition_label = opts.fetch :runin_admonition_label, true
     @sentence_per_line = opts.fetch :sentence_per_line, true
     @preserve_line_wrap = if @sentence_per_line
       false
@@ -279,9 +278,10 @@ class DocbookVisitor
     false
   end
 
-  # pass thru XML entities unchanged, eg., for &rarr;
   def visit_entity_ref node
-    append_text %(#{node})
+    append_text %({#{node.name}})
+    #workaround for missing space, nokogiri bug?
+    append_text ' ' if((next_node = node.next) && next_node.text.match(/^\s/))
     false
   end
 
@@ -435,8 +435,12 @@ class DocbookVisitor
       end
       format_text title_node
     else
-      warn %(No title found for section node: #{node})
-      'Unknown Title!'
+      if special
+        special.capitalize
+      else
+        warn %(No title found for section node: #{node})
+        'Unknown Title!'
+      end
     end
     if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
@@ -525,21 +529,12 @@ class DocbookVisitor
     elements = node.elements
     append_blank_line
     append_block_title node
-    if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
-      if @runin_admonition_label
-        append_line %(#{label}: #{format_text child})
-      else
-        append_line %([#{label}])
-        append_line (format_text child)
-      end
-    else
-      append_line %([#{label}])
-      append_line '===='
-      @adjoin_next = true
-      proceed node
-      @adjoin_next = false
-      append_line '===='
-    end
+    append_line %([#{label}])
+    append_line '===='
+    @adjoin_next = true
+    proceed node
+    @adjoin_next = false
+    append_line '===='
     false
   end
 
@@ -685,8 +680,16 @@ class DocbookVisitor
 
   def visit_bibliomixed node
     append_blank_line
-    proceed node
-    append_line @lines.pop.sub(/^\[(.*?)\]/, '* [[[\\1]]]')
+    append_text '- '
+    node.children.each do |child|
+      if child.name == 'abbrev'
+        append_text %([[[#{child.text}]]] )
+      elsif child.name == 'title'
+        append_text child.text
+      else
+        child.accept self
+      end
+    end
     false
   end
 
@@ -865,21 +868,17 @@ class DocbookVisitor
       (head.css '> row > entry').each do |cell|
         append_line %(| #{text cell})
       end
+      append_blank_line
     end
     (node.css '> tgroup > tbody > row').each do |row|
       append_blank_line
       row.elements.each do |cell|
-        next if !(element = cell.elements.first)
-        if element.text.empty?
-          append_line '|'
+        case cell.name
+        when 'literallayout'
+          append_line %(|`#{text cell}`)
         else
-          append_line %(| #{text cell})
-          #case element.name
-          #when 'literallayout'
-          #  append_line %(|`#{text cell}`)
-          #else
-          #  append_line %(|#{text cell})
-          #end
+          append_line '|'
+          proceed cell
         end
       end
     end
@@ -911,8 +910,11 @@ class DocbookVisitor
         if is_first
           text = text.lstrip
         elsif leading_space_match && !!(text !~ LeadingSpaceRx)
-          # QUESTION if leading space was an endline, should we restore the endline or just put a space char?
-          text = %(#{leading_space_match[0]}#{text})
+          if @lines[-1] == "----" || @lines[-1] == "===="
+            text = %(#{leading_space_match[0]}#{text})
+          else
+            text = %( #{text})
+          end
         end
 
         # FIXME sentence-per-line logic should be applied at paragraph block level only
@@ -946,7 +948,12 @@ class DocbookVisitor
     url = if node.name == 'ulink'
       node.attr 'url'
     else
-      (node.attribute_with_ns 'href', XlinkNs).value
+      href = (node.attribute_with_ns 'href', XlinkNs)
+      if (href)
+        href.value
+      else
+        node.text
+      end
     end
     prefix = 'link:'
     if url.start_with?('http://') || url.start_with?('https://')
@@ -1003,7 +1010,13 @@ class DocbookVisitor
 
   def visit_emphasis node
     quote_char = node.attr('role') == 'strong' ? '*' : '_'
-    append_text %(#{quote_char}#{format_text node}#{quote_char})
+    times = 1
+    if((prev_node = node.previous) && prev_node.type == TEXT_NODE && /\p{Word}\Z/ =~ prev_node.text) ||
+      ((next_node = node.next) && next_node.type == TEXT_NODE && /\A\p{Word}/ =~ next_node.text)
+      times = 2
+    end
+
+    append_text %(#{quote_char * times}#{format_text node}#{quote_char * times})
     false
   end
 
@@ -1246,6 +1259,43 @@ class DocbookVisitor
     false
   end
 
+  def visit_qandaset node
+    node.elements.to_a.each do |quandadiv|
+      quandadiv.elements.each do |element|
+        if element.name == 'title'
+          append_line ".#{element.text}"
+          append_blank_line
+          append_line '[qanda]'
+        elsif element.name == 'qandaentry'
+          id = resolve_id element, normalize: @normalize_ids
+          if (question = element.at_xpath 'db:question/db:para', 'db': DocbookNs)
+            append_line %([[#{id}]]) if id
+            append_line (format_text question) + "::"
+            if (answer = element.at_xpath 'db:answer', 'db': DocbookNs)
+              first = true
+              answer.children.each_with_index do |child, i|
+                unless child.text.rstrip.empty?
+                  unless first
+                    append_line '+'
+                    @continuation = true
+                  end
+                  first = nil
+                  child.accept self
+                end
+              end
+              @continuation = false
+            else
+              warn %(Missing answer in quandaset!)
+            end
+            append_blank_line
+          else
+            warn %(Missing question in quandaset! Skipping.)
+          end
+        end
+      end
+    end
+  end
+
   def lazy_quote text, seek = ','
     if text && (text.include? seek)
       %("#{text}")
@@ -1256,6 +1306,22 @@ class DocbookVisitor
 
   def unwrap_text text
     text.gsub WrappedIndentRx, ''
+  end
+
+  def convert_entities entities
+    entities.each do |entity|
+      next if entity.comment?
+      append_line ":#{entity.name}: pass:q["
+      if entity.system_id
+        append_text "include::#{entity.system_id}.adoc[]"
+      else
+        entity.children.each do |gchild|
+          gchild.accept self
+        end
+      end
+      append_text ']'
+    end
+    append_blank_line  if !entities.empty?
   end
 end
 end
