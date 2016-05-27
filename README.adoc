@@ -101,6 +101,28 @@ The script will automatically create the output file [path]_sample.adoc_, replac
 The converter is not perfect yet, but we'll get there with your help.
 You'll can find a list of tasks that need attention listed in the WORKLOG.adoc file.
 
+=== Conditional attribute
+
+The DocBook conditional attribute "condition" is replaced to "ifdef" macro.
+
+Take note the marco is on a line by itself.
+
+For example, in the case of there is the DocBook inline element with condition.
+
+ a<phrase condition="foo">b</phrase>c
+
+It is converted to below AsciiDoc format.
+
+ a
+ ifdef::foo[]
+ b
+ endif::foo[]
+ c
+
+When it is converted to html format, the output is displayed with both a space before "b" and a space after "b".
+
+ a b c
+
 == About this Project
 
 === Authors
