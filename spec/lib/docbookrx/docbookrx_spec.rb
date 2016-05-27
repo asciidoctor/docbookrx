@@ -32,8 +32,9 @@ Doc Writer <doc@example.com>
 
 == First Section
 
+
 content
-    EOS
+EOS
 
     output = Docbookrx.convert input
 
@@ -304,7 +305,6 @@ Please note the fruit:
 ----
 Apple, oranges and bananas
 ----
-
 ====
     EOS
 
@@ -330,15 +330,24 @@ Apple, oranges and bananas
     <qandadiv>
       <title>Various Questions</title>
       <qandaentry xml:id="some-question">
-      <question>
-        <para>My question?</para>
-      </question>
-      <answer>
-        <para>My answer!</para>
-      </answer>
+        <question>
+          <para>My question?</para>
+        </question>
+        <answer>
+          <para>My answer!</para>
+        </answer>
+      </qandaentry>
+      <qandaentry>
+        <question>
+          <para>Another question?</para>
+        </question>
+        <answer>
+          <para>Another answer!</para>
+        </answer>
       </qandaentry>
     </qandadiv>
   </qandaset>
+  <para>A paragraph</para>
 </article>
     EOS
 
@@ -350,6 +359,13 @@ Apple, oranges and bananas
 My question?::
 
 My answer!
+
+Another question?::
+
+Another answer!
+
+
+A paragraph
     EOS
 
     output = Docbookrx.convert input
@@ -480,13 +496,14 @@ Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-2003032
         <para>this listitem has....</para>
         <para>...multiple elements!</para>
         <para>So there should be continuations!</para>
+      </listitem>
     </itemizedlist>
-  </para>
+
+    But a newline at the end</para>
 </article>
     EOS
 
-    expected = <<-EOS
-
+    expected = <<-EOS.rstrip
 Some examples: 
 
 * get all process definitions
@@ -495,28 +512,26 @@ Some examples:
 ----
 Collection mousse = service.getChocolate();
 ----
-
 * get active process instances 
 +
 [source]
 ----
 Collection rum = service.getRaisin();
 ----
-
 * get tasks assigned to john 
 +
 [source]
 ----
 List moonshine = service.getCinnamon();
 ----
-
 * this listitem has....
 + 
 ...multiple elements!
 + 
 So there should be continuations!
+
+But a newline at the end
    EOS
-    expected += " "
     output = Docbookrx.convert input
 
     expect(output).to include(expected)
@@ -870,7 +885,7 @@ break!
 ====
 Note text
 ====
-+ 
++
 List text
 * {empty}
 +
@@ -899,7 +914,7 @@ One note
 ====
 $$..$$ a note...
 ====
-+ 
++
 ...and then more text?!?
 * {empty}
 +
@@ -911,13 +926,65 @@ $$..$$ a note...
 ** Crazier
 *** Craziest
 
-+ 
++
 Crazy
-
     EOS
     output = Docbookrx.convert input
 
     expect(output).to include(expected)
   end
 
+  it 'add a new line after figures' do
+
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <para>Non-global stories:
+  <figure>
+      <title>Local History</title>
+      <screenshot>
+        <mediaobject>
+          <imageobject>
+            <imagedata fileref="Designer/localhistory1.png"/>
+          </imageobject>
+        </mediaobject>
+      </screenshot>
+    </figure>
+
+    The Local History results screen allows stuff.
+
+    <figure>
+      <title>Local History Sample Results</title>
+      <screenshot>
+        <mediaobject>
+          <imageobject>
+            <imagedata fileref="Designer/localhistory-results.png"/>
+          </imageobject>
+        </mediaobject>
+      </screenshot>
+    </figure>
+    And sometimes it does not.</para>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+Non-global stories: 
+
+.Local History
+image::Designer/localhistory1.png[]
+
+The Local History results screen allows stuff. 
+
+.Local History Sample Results
+image::Designer/localhistory-results.png[]
+
+And sometimes it does not.
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 end

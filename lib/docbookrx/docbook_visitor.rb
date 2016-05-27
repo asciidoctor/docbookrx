@@ -10,7 +10,7 @@ class DocbookVisitor
   XlinkNs = 'http://www.w3.org/1999/xlink'
   IndentationRx = /^[[:blank:]]+/
   LeadingSpaceRx = /\A\s/
-  LeadingEndlinesRx = /\A\n+/
+  LeadingEndlinesRx = /\A\n+ */
   TrailingEndlinesRx = /\n+\z/
   FirstLineIndentRx = /\A[[:blank:]]*/
   WrappedIndentRx = /\n[[:blank:]]*/
@@ -96,6 +96,7 @@ class DocbookVisitor
     @list_depth = 0
     @in_table = false
     @nested_formatting = []
+    @last_added_was_special = false
   end
 
   ## Traversal methods
@@ -132,7 +133,6 @@ class DocbookVisitor
     end
 
     before_traverse node, visit_method_name if (respond_to? :before_traverse)
-
     result = if respond_to? visit_method_name
       send visit_method_name, node
     elsif respond_to? :default_visit
@@ -316,13 +316,24 @@ class DocbookVisitor
         append_line 'endif::backend-docbook[]'
       end
     else
-      case method.to_s
+      method_name = method.to_s
+      case method_name
       when "visit_itemizedlist", "visit_orderedlist"
         @list_depth -= 1
       when "visit_table", "visit_informaltable"
         @in_table = false
       when "visit_emphasis", "process_literal"
         @nested_formatting.pop
+      end
+
+      @last_added_was_special = false
+      case method_name
+      when "visit_para", "visit_text", "visit_simpara", 
+           "visit_emphasis", "visit_link"
+      else
+        unless ( FORMATTING_NAMES.include? node.name ) || ( ["uri", "ulink"].include? node.name )
+          @last_added_was_special = true
+        end
       end
     end
   end
@@ -569,16 +580,18 @@ class DocbookVisitor
   end
 
   def visit_para node
+    empty_last_line = ! lines.empty? && lines.last.empty?
     append_blank_line
     append_block_role node
-    append_blank_line
+    append_blank_line unless empty_last_line
     true
   end
 
   def visit_simpara node
+    empty_last_line = ! lines.empty? && lines.last.empty?
     append_blank_line
     append_block_role node
-    append_blank_line
+    append_blank_line unless empty_last_line
     true
   end
 
@@ -756,7 +769,6 @@ class DocbookVisitor
     end
     @continuation = false
     append_blank_line unless lines.last.empty?
-    # TODO: fix append_blank_line so that it contains line.last.empty? logic
 
     false
   end
@@ -1057,10 +1069,9 @@ class DocbookVisitor
   end
 
   def visit_text node
-
     in_para = PARA_TAG_NAMES.include?(node.parent.name) || node.parent.name == 'phrase'
     # drop text if empty unless we're processing a paragraph
-    unless node.text.rstrip.empty? && !in_para
+    unless node.text.rstrip.empty?
       text = node.text
       if in_para
         leading_space_match = text.match LeadingSpaceRx
@@ -1071,8 +1082,12 @@ class DocbookVisitor
         if is_first
           text = text.lstrip
         elsif leading_space_match && !!(text !~ LeadingSpaceRx)
-          if @lines[-1] == "----" || @lines[-1] == "===="
+          if @lines[-1] == "----" || @lines[-1] == "====" 
             text = %(#{leading_space_match[0]}#{text})
+          elsif (node_prev = node.previous) &&
+                ! ( node_prev.name == "para" || node_prev.name == "text" ) &&
+                ( (lines.last.end_with? " ") || (lines.last.end_with? "\n") || lines.last.empty? )
+            # no leading space before text
           else
             text = %( #{text})
           end
@@ -1096,6 +1111,12 @@ class DocbookVisitor
       if ( @lines[-1].empty? ) && ( text.start_with? '.' )
         text = text.sub( /\A(\.+)/, "$$\\1$$" )
       end
+      if @last_added_was_special
+        readd_space = text.end_with? " ","\n"
+        text = "\n" + text.rstrip
+        text = text + " " if readd_space
+      end
+
       append_text text, true
     end
     false
@@ -1386,6 +1407,7 @@ class DocbookVisitor
       alt = nil if alt && alt == generated_alt
       append_blank_line
       append_line %(image::#{src}[#{lazy_quote alt}])
+      append_blank_line
     else
       warn %(Unknown mediaobject <#{node.elements.first.name}>! Skipping.)
     end
