@@ -7,6 +7,7 @@ module Docbookrx
     raise 'Not a parseable document' unless (root = xmldoc.root)
     visitor = DocbookVisitor.new opts
     root.accept visitor
+    visitor.after
     visitor.lines * "\n"
   end
 
