@@ -340,7 +340,7 @@ class DocbookVisitor
 
   ## Node visitor callbacks
 
- def default_visit node
+  def default_visit node
     warn %(No visitor defined for <#{node.name}>! Skipping.)
     false
   end
@@ -598,7 +598,6 @@ class DocbookVisitor
   def process_admonition node
     name = node.name
     label = name.upcase
-    elements = node.elements
     append_blank_line unless @continuation
     append_block_title node
     append_line %([#{label}])
@@ -631,7 +630,7 @@ class DocbookVisitor
     visit_orderedlist node
   end
 
- def visit_orderedlist node
+  def visit_orderedlist node
     append_blank_line
     # TODO no title?
     if (numeration = (node.attr 'numeration')) && numeration != 'arabic'
@@ -994,8 +993,9 @@ class DocbookVisitor
     numcols = (node.at_css '> tgroup').attr('cols').to_i
     unless (row_node = (node.at_css '> tgroup > thead > row')).nil?
       if (numheaders = row_node.elements.length) != numcols
-        title = " \'" + ((title_node = (node.at_css '> title')).nil? ? "" : title_node.children[0].text) 
-                + "\'"
+        title = " \'" +
+          ((title_node = (node.at_css '> title')).nil? ?
+          "" : title_node.children[0].text) + "\'"
         warn %(#{numcols} columns specified in table#{title}, but only #{numheaders} headers)
       end
     end
@@ -1289,10 +1289,10 @@ class DocbookVisitor
     case name
     # ex. <menuchoice><guimenu>System</guimenu><guisubmenu>Documentation</guisubmenu></menuchoice>
     when 'menuchoice'
-      items = node.children.map {|node|
-        if (node.type == ELEMENT_NODE) && ['guimenu', 'guisubmenu', 'guimenuitem'].include?(node.name)
-          node.instance_variable_set :@skip, true
-          node.text
+      items = node.children.map {|n|
+        if (n.type == ELEMENT_NODE) && ['guimenu', 'guisubmenu', 'guimenuitem'].include?(n.name)
+          n.instance_variable_set :@skip, true
+          n.text
         end
       }.compact
       append_text %(menu:#{items[0]}[#{items[1..-1] * ' > '}])
@@ -1450,7 +1450,7 @@ class DocbookVisitor
           append_text ','
           append_line ' ' * indent
         end
-        append_text paramdef.text.sub /\n.*/m, ''
+        append_text paramdef.text.sub(/\n.*/m, '')
         if (param = paramdef.at_xpath 'db:funcparams', 'db': DocbookNs)
           append_text %[ (#{param.text})]
         end
