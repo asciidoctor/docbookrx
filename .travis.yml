@@ -1,6 +1,9 @@
 sudo: false
 git:
   depth: 1
+env:
+  global:
+    - NOKOGIRI_USE_SYSTEM_LIBRARIES=true
 language: ruby
 rvm:
   - 2.3.0
