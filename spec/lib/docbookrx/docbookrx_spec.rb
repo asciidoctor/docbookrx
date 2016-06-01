@@ -934,7 +934,7 @@ Crazy
     expect(output).to include(expected)
   end
 
-  it 'add a new line after figures' do
+  it 'adds a new line after figures' do
 
     input = <<-EOS
 <article xmlns='http://docbook.org/ns/docbook'
@@ -987,4 +987,128 @@ And sometimes it does not.
 
     expect(output).to include(expected)
   end
+
+  it 'should correctly convert varlistentry elements with nested lists' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+
+  <variablelist>
+    <varlistentry>
+      <term><command>showStartProcessForm(hostUrl)</command>:
+            Makes a call to the REST endpoint.</term>
+      <listitem>
+        <itemizedlist>
+          <listitem>
+            <para><emphasis>hostURL</emphasis>: the URL</para>
+          </listitem>
+          <listitem>
+            <para><emphasis>deploymentId</emphasis>: the deployment identifier</para>
+          </listitem>
+          <listitem>
+            <para><emphasis>processId</emphasis>: the identifier of the process</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+    </varlistentry>
+    <varlistentry>
+      <term><command>startProcess(divId)</command>:
+        Submits the form loaded.</term>
+      <listitem>
+        <itemizedlist>
+          <listitem>
+            <para><emphasis>divId</emphasis>: the identifier</para>
+          </listitem>
+          <listitem>
+            <para><emphasis>onsuccessCallback</emphasis> (optional): a javascript function</para>
+          </listitem>
+          <listitem>
+            <para><emphasis>onerrorCallback</emphasis> (optional): a javascript function</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+``showStartProcessForm(hostUrl)``: Makes a call to the REST endpoint.::
+
+* __hostURL__: the URL
+* __deploymentId__: the deployment identifier
+* __processId__: the identifier of the process
+
+``startProcess(divId)``: Submits the form loaded.::
+
+* __divId__: the identifier
+* _onsuccessCallback_ (optional): a javascript function
+* _onerrorCallback_ (optional): a javascript function
+EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
+  it 'convert variable lists with multiple para elements per entry' do
+    input = <<-EOS
+ <variablelist>
+      <varlistentry>
+        <term><literal>no-loop</literal></term>
+
+        <listitem>
+          <para>default value: <literal>false</literal></para>
+
+          <para>type: Boolean</para>
+
+          <para>When a rule's consequence modifies a fact it may cause the
+          rule to activate again, causing an infinite loop. Setting no-loop to
+          true will skip the creation of another Activation for the rule with
+          the current set of facts.</para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><literal>ruleflow-group</literal></term>
+
+        <listitem>
+          <para>default value: N/A</para>
+
+          <para>type: String</para>
+
+          <para>Ruleflow is a Drools feature that lets you exercise control
+          over the firing of rules. Rules that are assembled by the same
+          ruleflow-group identifier fire only when their group is
+          active.</para>
+        </listitem>
+      </varlistentry>
+    EOS
+
+    expected = <<-EOS.rstrip
+
+`no-loop`::
+default value: `false`
++
+type: Boolean
++
+When a rule's consequence modifies a fact it may cause the rule to activate again, causing an infinite loop.
+Setting no-loop to true will skip the creation of another Activation for the rule with the current set of facts.
+
+`ruleflow-group`::
+default value: N/A
++
+type: String
++
+Ruleflow is a Drools feature that lets you exercise control over the firing of rules.
+Rules that are assembled by the same ruleflow-group identifier fire only when their group is active.
+EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
 end
