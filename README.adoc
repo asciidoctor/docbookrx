@@ -78,17 +78,23 @@ If it's not installed, use the `gem` command to install it.
 
  $ gem install bundler
 
-Then, use the `bundle` command (which is provided by the bundler gem) to install the project dependencies:
+Next, configure the `bundle` command (provided by the bundler gem) to use the system-wide Nokogiri library if available, which dramatically cuts down on installation time:
 
- $ bundle
+ $ bundle config --local build.nokogiri --use-system-libraries
+
+Finally, use the `bundle` command (which is provided by the bundler gem) to install the dependencies into the project:
+
+ $ bundle --path=.bundle/rubygems
 
 NOTE: You must invoke `bundle` from the project's root directory so it can locate the [path]_Gemfile_.
+
+IMPORTANT: Since we've installed dependencies inside the project, it's necessary to prefix all commands (e.g., rake and docbookrx) with `bundle exec`.
 
 == Running the Converter
 
 To run the converter, execute the launch script and pass a DocBook file to convert as the first argument.
 
- $ ./bin/docbookrx sample.xml
+ $ bundle exec docbookrx sample.xml
 
 The script will automatically create the output file [path]_sample.adoc_, replacing the DocBook file extension, `.xml` with the AsciiDoc file extension, `.adoc`.
 
