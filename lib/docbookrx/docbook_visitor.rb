@@ -71,6 +71,8 @@ class DocbookVisitor
 
   UI_NAMES = ['guibutton', 'guilabel', 'menuchoice', 'guimenu', 'keycap']
 
+  IGNORED_NAMES = ['title', 'subtitle', 'toc']
+
   attr_reader :lines
 
   def initialize opts = {}
@@ -141,6 +143,10 @@ class DocbookVisitor
 
     traverse_children node if result == true
     after_traverse node, visit_method_name if (respond_to? :after_traverse)
+  end
+
+  def after
+    replace_ifdef_lines
   end
 
   def traverse_children node, opts = {}
@@ -291,6 +297,10 @@ class DocbookVisitor
   ## Lifecycle callbacks
 
   def before_traverse node, method
+    unless IGNORED_NAMES.include? node.name
+      append_ifdef_start_if_condition(node)
+    end
+
     case method.to_s
     when "visit_itemizedlist", "visit_orderedlist"
       @list_depth += 1
@@ -336,6 +346,10 @@ class DocbookVisitor
         end
       end
     end
+
+    unless IGNORED_NAMES.include? node.name
+      append_ifdef_end_if_condition(node)
+    end
   end
 
   ## Node visitor callbacks
@@ -355,10 +369,10 @@ class DocbookVisitor
     false
   end
   # Skip title and subtitle as they're always handled by the parent visitor
-  alias :visit_title :ignore
-  alias :visit_subtitle :ignore
-
-  alias :visit_toc :ignore
+  IGNORED_NAMES.each do |name|
+    method_name = "visit_#{name}".to_sym
+    alias_method method_name, :ignore
+  end
 
   ### Document node (article | book | chapter) & header node (articleinfo | bookinfo | info) visitors
 
@@ -497,7 +511,9 @@ class DocbookVisitor
       append_blank_line
       append_line %([#{special}])
     end
-    title = if (title_node = (node.at_css '> title') || (node.at_css '> info > title'))
+
+    title_node = (node.at_css '> title') || (node.at_css '> info > title')
+    title = if title_node
       if (subtitle_node = (node.at_css '> subtitle') || (node.at_css '> info > subtitle'))
         title_node.inner_html += %(: #{subtitle_node.inner_html})
       end
@@ -514,8 +530,10 @@ class DocbookVisitor
     if (id = (resolve_id node, normalize: @normalize_ids)) && id != (generate_id title)
       append_line %([[#{id}]])
     end
+    append_ifdef_start_if_condition(title_node) if title_node
     append_line %(#{'=' * @level} #{unwrap_text title})
     lines.concat(text) unless text.nil? || text.empty?
+    append_ifdef_end_if_condition(title_node) if title_node
     yield if block_given?
     if (abstract_node = (node.at_css '> info > abstract'))
       append_line
@@ -1035,6 +1053,7 @@ class DocbookVisitor
       append_blank_line
     end
     (node.css '> tgroup > tbody > row').each do |row|
+      append_ifdef_start_if_condition(row)
       append_blank_line
       row.elements.each do |cell|
         case cell.name
@@ -1045,6 +1064,7 @@ class DocbookVisitor
           proceed cell
         end
       end
+      append_ifdef_end_if_condition(row)
     end
     if foot
       (foot.css '> row > entry').each do |cell|
@@ -1562,6 +1582,43 @@ class DocbookVisitor
 
   def unwrap_text text
     text.gsub WrappedIndentRx, ''
+  end
+
+  def element_with_condition? node
+    node.type == ELEMENT_NODE && node.attr('condition')
+  end
+
+  def append_ifdef_if_condition node
+    return unless element_with_condition?(node)
+    condition = node.attr('condition')
+    yield condition
+  end
+
+  def append_ifdef_start_if_condition node
+    append_ifdef_if_condition node do |condition|
+      append_line "ifdef::#{condition}[]"
+    end
+  end
+
+  def append_ifdef_end_if_condition node
+    append_ifdef_if_condition node do |condition|
+      append_line "endif::#{condition}[]"
+    end
+  end
+
+  def replace_ifdef_lines
+    out_lines = []
+    @lines.each do |line|
+      if (data = line.match(/^((ifdef|endif)::.+?\[\])(.+)$/))
+        # data[1]: "(ifdef|endif)::someting[]"
+        out_lines << data[1]
+        # data[3]: a string after "[]"
+        out_lines << data[3]
+      else
+        out_lines << line
+      end
+    end
+    @lines = out_lines
   end
 end
 end
