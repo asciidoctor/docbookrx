@@ -71,6 +71,8 @@ class DocbookVisitor
 
   UI_NAMES = ['guibutton', 'guilabel', 'menuchoice', 'guimenu', 'keycap']
 
+  LIST_NAMES = ['itemizedlist', 'orderedlist', 'variablelist', 'procedure', 'substeps', 'stepalternatives' ]
+
   attr_reader :lines
 
   def initialize opts = {}
@@ -292,7 +294,8 @@ class DocbookVisitor
 
   def before_traverse node, method
     case method.to_s
-    when "visit_itemizedlist", "visit_orderedlist"
+    when "visit_itemizedlist", "visit_orderedlist", 
+         "visit_procedure", "visit_substeps", "visit_stepalternatives"
       @list_depth += 1
     when "visit_table", "visit_informaltable"
       @in_table = true
@@ -778,25 +781,74 @@ class DocbookVisitor
     append_blank_line
     
     text = format_text(node.at_css node, '> term')
-    append_line %(#{text.shift(1)[0]}::)
-    lines.concat(text) unless text.empty?
-
-    text = format_text(node.at_css node, '> listitem > para', '> listitem > simpara')
-    unless text.nil? || (item_text = text.shift(1)[0]).empty?
-      item_text.split(EOL).each do |line|
-        append_line %(  #{line})
+    text.each do |text_line| 
+      text_line.split(EOL).each_with_index do |line,i|
+        line = line.gsub IndentationRx, ''
+        if line.length > 0
+          if i == 0 
+            append_line line
+          else 
+            append_text ( " " + line )
+          end
+        end
       end
-      lines.concat(text)
+    end
+    append_text "::"
+
+    first_line = true
+    listitem = node.at_css node, '> listitem'
+    listitem.elements.each_with_index do |child,i|
+      if ( child.name.eql? "text" ) && child.text.rstrip.empty?
+        next
+      end
+    
+      local_continuation = false
+      unless i == 0 || first_line || (child.name == 'literallayout' || (LIST_NAMES.include? child.name) )
+        append_line '+'
+        append_blank_line
+        @continuation = true
+        local_continuation = true
+      end
+    
+      if ( PARA_TAG_NAMES.include? child.name ) || ( child.name.eql? "text" )
+        append_blank_line if i == 0
+
+        text = format_text child
+        item_text = text.shift(1)[0]
+    
+        item_text = item_text.sub(/\A\+([^\n])/, "+\n\\1")
+        if item_text.empty? && text.empty?
+          next
+        end
+    
+        item_text.split(EOL).each do |line|
+          line = line.gsub IndentationRx, ''
+          if line.length > 0
+            if first_line
+              append_text line
+              first_line = false
+            else
+              append_line line
+            end
+          end
+        end
+    
+        unless text.empty?
+          append_line '+' unless lines.last == "+"
+          lines.concat(text)
+        end
+      else
+        if ! FORMATTING_NAMES.include? child.name
+          unless local_continuation || (child.name == 'literallayout' || (LIST_NAMES.include? child.name) )
+            append_line '+'
+          end
+          @continuation = false
+        end
+        child.accept self
+        @continuation = true
+      end
     end
 
-    # support listitem figures in a listentry
-    # FIXME we should be supporting arbitrary complex content!
-    if node.at_css('listitem figure')
-      # warn %(#{node.at_css('listitem figure')})
-      visit_figure node.at_css('listitem figure')
-    end
-
-    # FIXME this doesn't catch complex children
     false
   end
 
