@@ -11,8 +11,14 @@ Gem::Specification.new do |s|
   s.description = 'The prescription for all your DocBook pain. Converts DocBook XML to AsciiDoc.'
   s.license = 'MIT'
 
-  s.files = Dir['lib/*', 'lib/*/**']
+  files = begin
+    IO.popen('git ls-files -z') {|io| io.read }.split "\0"
+  rescue
+    Dir['**/*']
+  end
+  s.files = files.grep(/^(?:(?:bin|lib|tasks|spec)\/.+|Rakefile|LICENSE|(?:README|WORKLOG)\.adoc)$/)
   s.executables = ['docbookrx']
+  s.test_files = s.files.grep(/^spec\//)
   s.extra_rdoc_files = Dir['README.adoc', 'LICENSE']
   s.require_paths = ['lib']
 
