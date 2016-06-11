@@ -9,7 +9,7 @@ module Docbookrx
     end
 
     def self.version
-      '1.0.0'
+      '1.0.0.dev'
     end
 
     def self.version_label
