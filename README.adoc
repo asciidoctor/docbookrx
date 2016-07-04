@@ -61,7 +61,7 @@ Follow the {uri-rvm-install}[installation instructions] on the RVM site to setup
 Once you have RVM setup, we recommend creating a new gemset to work with {project-name}:
 
 [subs=attributes+]
- $ rvm use default@{project-handle}-dev --create
+ $ rvm use 2.3.0@{project-handle}-dev --create
 
 We like RVM because it keeps the dependencies required by various projects isolated from each other and from your system.
 
