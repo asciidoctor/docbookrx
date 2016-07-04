@@ -58,10 +58,14 @@ Next, switch to the project directory:
 We recommend using {uri-rvm}[RVM] when developing applications with Ruby.
 Follow the {uri-rvm-install}[installation instructions] on the RVM site to setup RVM and install Ruby.
 
-Once you have RVM setup, we recommend creating a new gemset to work with {project-name}:
+Once you have RVM setup, switch to the version of Ruby you installed:
 
 [subs=attributes+]
- $ rvm use default@{project-handle}-dev --create
+ $ rvm use 2.3.0
+
+If you want RVM to set the version of Ruby automatically whenever you switch to the project, write the version of Ruby to a file at the root of the project named [path]_.ruby-version_:
+
+ $ echo 2.3.0 > .ruby-version
 
 We like RVM because it keeps the dependencies required by various projects isolated from each other and from your system.
 
@@ -84,7 +88,7 @@ Next, configure the `bundle` command (provided by the bundler gem) to use the sy
 
 Finally, use the `bundle` command (which is provided by the bundler gem) to install the dependencies into the project:
 
- $ bundle --path=.bundle/rubygems
+ $ bundle --path=.bundle/gems
 
 NOTE: You must invoke `bundle` from the project's root directory so it can locate the [path]_Gemfile_.
 
