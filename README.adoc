@@ -139,7 +139,7 @@ Gem structure originally created using https://github.com/bkuhlmann/gemsmith[Gem
 
 === Copyright
 
-Copyright (C) 2013-2015 Dan Allen and the Asciidoctor Project.
+Copyright (C) 2013-2016 Dan Allen and the Asciidoctor Project.
 Free use of this software is granted under the terms of the MIT License.
 
 See the link:LICENSE[LICENSE] file for details.
