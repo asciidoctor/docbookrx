@@ -418,6 +418,11 @@ class DocbookVisitor
   end
 
   def process_doc node
+    # In DocBook 5.0, title is directly inside book/article element
+    if (title = text_at_css node, '> title')
+      append_line %(= #{title})
+      append_blank_line
+    end
     @level += 1
     proceed node, :using_elements => true
     @level -= 1
@@ -425,8 +430,11 @@ class DocbookVisitor
   end
 
   def process_info node
-    title = text_at_css node, '> title'
-    append_line %(= #{title})
+    # In DocBook 4.5, title is nested inside info element
+    if (title = text_at_css node, '> title')
+      append_line %(= #{title})
+      append_blank_line
+    end
     authors = []
     (node.css 'author').each do |author_node|
       # FIXME need to detect DocBook 4.5 vs 5.0 to handle names properly
