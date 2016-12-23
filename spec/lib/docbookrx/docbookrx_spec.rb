@@ -1037,7 +1037,39 @@ image::images/dummy.png[some screenshot]
     EOS
     output = Docbookrx.convert input
     expect(output).to eq(expected)
-end
+  end
+
+  it 'adds an XML ID for figures' do
+
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <para>See <xref linkend="sample-figure"/>
+  <figure xml:id="sample-figure">
+    <title>Local History</title>
+    <mediaobject>
+      <imageobject>
+        <imagedata fileref="images/dummy.png"/>
+      </imageobject>
+    </mediaobject>
+  </figure>
+
+</article>
+    EOS
+
+    expected = <<-EOS.rstrip
+See <<_sample_figure>>
+
+[[_sample_figure]]
+.Local History
+image::images/dummy.png[]
+    EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
 
   it 'should correctly convert varlistentry elements with nested lists' do
     input = <<-EOS
