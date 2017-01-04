@@ -439,7 +439,7 @@ class DocbookVisitor
     (node.css 'author').each do |author_node|
       # FIXME need to detect DocBook 4.5 vs 5.0 to handle names properly
       author = if (personname_node = (author_node.at_css 'personname'))
-        text personname_node
+        [(text_at_css personname_node, 'firstname'), (text_at_css personname_node, 'surname')].compact * ' '
       else
         [(text_at_css author_node, 'firstname'), (text_at_css author_node, 'surname')].compact * ' '
       end
