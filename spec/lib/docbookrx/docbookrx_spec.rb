@@ -2,7 +2,7 @@
 require 'spec_helper'
 
 describe 'Conversion' do
-  it 'should create a document header with title, author and attributes' do
+  it 'should create a document header with title, author and attributes from DocBook 4.5 content' do
     input = <<-EOS
 <?xml version="1.0" encoding="UTF-8"?>
 <book xmlns="http://docbook.org/ns/docbook">
@@ -23,6 +23,48 @@ describe 'Conversion' do
 
     expected = <<-EOS.rstrip
 = Document Title
+
+Doc Writer <doc@example.com>
+:doctype: book
+:sectnums:
+:toc: left
+:icons: font
+:experimental:
+
+== First Section
+
+content
+EOS
+
+    output = Docbookrx.convert input
+
+    expect(output).to eq(expected)
+  end
+
+  it 'should create a document header with title, author and attributes from DocBook 5 content' do
+    input = <<-EOS
+<?xml version="1.0" encoding="UTF-8"?>
+<book xmlns="http://docbook.org/ns/docbook">
+<title>Document Title</title>
+<info>
+<author>
+<personname>
+<firstname>Doc</firstname>
+<surname>Writer</surname>
+</personname>
+<email>doc@example.com</email>
+</author>
+</info>
+<section>
+<title>First Section</title>
+<para>content</para>
+</section>
+</book>
+    EOS
+
+    expected = <<-EOS.rstrip
+= Document Title
+
 Doc Writer <doc@example.com>
 :doctype: book
 :sectnums:
