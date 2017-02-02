@@ -1662,7 +1662,7 @@ class DocbookVisitor
     out_lines = []
     @lines.each do |line|
       if (data = line.match(/^((ifdef|endif)::.+?\[\])(.+)$/))
-        # data[1]: "(ifdef|endif)::someting[]"
+        # data[1]: "(ifdef|endif)::something[]"
         out_lines << data[1]
         # data[3]: a string after "[]"
         out_lines << data[3]

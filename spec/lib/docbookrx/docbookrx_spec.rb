@@ -107,7 +107,7 @@ All DocBook V5.0 elements are in the namespace http://docbook.org/ns/docbook.'
     expect(output).to include(expected)
   end
 
-  it 'should use attribute refence for uri if matching uri attribute is present' do
+  it 'should use attribute reference for uri if matching uri attribute is present' do
     input = <<-EOS
 <para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Read about <uri xlink:href="http://en.wikipedia.org/wiki/Object-relational_mapping">Object-relational mapping</uri> on Wikipedia.</para>
     EOS
