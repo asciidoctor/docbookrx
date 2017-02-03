@@ -15,7 +15,7 @@ NOTE: All issues in this section have a matching tracker bug created in this pro
 - implement citetitle and attribution on blockquote
 - list continuation doesn't get added if literallayout is delimited (bug)
 - implement qanda list (i.e., qandaset)
-- implement callouts (i.e, calloutlist)
+- implement callouts (i.e., calloutlist)
 - implement list IDs
 - implement nested lists (currently using same level)
 - text after variablelist inside same paragraph gets adjoined to text of last item (bug)
