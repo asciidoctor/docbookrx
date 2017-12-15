@@ -356,6 +356,10 @@ class DocbookVisitor
 
   def default_visit node
     warn %(No visitor defined for <#{node.name}>! Skipping.)
+    node.to_xml.each_line do |line|
+      append_line %(// #{line.chomp})
+    end
+    append_blank_line
     false
   end
 
