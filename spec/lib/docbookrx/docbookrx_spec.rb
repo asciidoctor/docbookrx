@@ -32,7 +32,6 @@ Doc Writer <doc@example.com>
 
 == First Section
 
-
 content
 EOS
 
@@ -364,7 +363,6 @@ Another question?::
 
 Another answer!
 
-
 A paragraph
     EOS
 
@@ -525,9 +523,9 @@ Collection rum = service.getRaisin();
 List moonshine = service.getCinnamon();
 ----
 * this listitem has....
-+ 
++
 ...multiple elements!
-+ 
++
 So there should be continuations!
 
 But a newline at the end
@@ -635,7 +633,6 @@ But a newline at the end
 *** squid
 .... shrimp
 .. manta rays
-
 
 break!
 
@@ -974,12 +971,10 @@ Non-global stories:
 
 .Local History
 image::Designer/localhistory1.png[]
-
 The Local History results screen allows stuff. 
 
 .Local History Sample Results
 image::Designer/localhistory-results.png[]
-
 And sometimes it does not.
     EOS
 
@@ -1120,8 +1115,7 @@ EOS
           EOS
           expected = <<-EOS.rstrip
 
-ab
-c
+abc
           EOS
           output = Docbookrx.convert input
           expect(output).to eq(expected)
