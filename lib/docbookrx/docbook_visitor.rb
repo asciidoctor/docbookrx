@@ -1181,11 +1181,13 @@ class DocbookVisitor
       if ( @lines[-1].empty? ) && ( text.start_with? '.' )
         text = text.sub( /\A(\.+)/, "$$\\1$$" )
       end
+      readd_space = text.end_with? " ","\n"
       if @last_added_was_special
-        readd_space = text.end_with? " ","\n"
         text = "\n" + text.rstrip
-        text = text + " " if readd_space
+      else
+        text.rstrip!
       end
+      text = text + " " if readd_space
 
       append_text text, true
     end
