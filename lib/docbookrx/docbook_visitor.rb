@@ -724,7 +724,7 @@ class DocbookVisitor
             text = format_text child
             item_text = text.shift(1)[0]
 
-            item_text = item_text.sub(/\A\+([^\n])/, "+ \n\\1")
+            item_text = item_text.sub(/\A\+([^\n])/, "+\n\\1")
             if item_text.empty? && text.empty?
               next
             end
