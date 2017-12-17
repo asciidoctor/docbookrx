@@ -341,12 +341,9 @@ class DocbookVisitor
 
       @last_added_was_special = false
       case method_name
-      when "visit_para", "visit_text", "visit_simpara", 
-           "visit_emphasis", "visit_link"
-      else
-        unless ( FORMATTING_NAMES.include? node.name ) || ( ["uri", "ulink"].include? node.name )
-          @last_added_was_special = true
-        end
+      when "visit_itemizedlist", "visit_orderedlist", "visit_table",
+           "visit_informaltable", "visit_quandaset", "figure"
+        @last_added_was_special = true
       end
     end
 
@@ -603,6 +600,7 @@ class DocbookVisitor
   def visit_para node
     empty_last_line = ! lines.empty? && lines.last.empty?
     append_blank_line
+    @last_added_was_special = false
     append_block_role node
     append_blank_line unless empty_last_line
     true
