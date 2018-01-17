@@ -108,7 +108,7 @@ class DocbookVisitor
   # Main processor loop
   def visit node
     return if node.type == COMMENT_NODE
-    return if node.instance_variable_get :@skip
+    return if node.instance_variable_defined? :@skip
 
     name = node.name
     visit_method_name = case node.type
