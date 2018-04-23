@@ -144,6 +144,18 @@ All DocBook V5.0 elements are in the namespace http://docbook.org/ns/docbook.'
     expect(output).to include(expected)
   end
 
+  it 'should convert email element to mailto macro' do
+    input = <<-EOS
+<para xmlns="http://docbook.org/ns/docbook">Contact me at <email>info@example.org</email> for more information.</para>
+    EOS
+
+    expected = 'Contact me at mailto:info@example.org[] for more information.'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
   it 'should convert itemized list to unordered list' do
     input = <<-EOS
 <itemizedlist xmlns="http://docbook.org/ns/docbook">
