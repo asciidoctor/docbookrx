@@ -1477,6 +1477,10 @@ class DocbookVisitor
     visit_figure node
   end
 
+  def visit_screenshot node
+    visit_figure node
+  end
+
   # FIXME share logic w/ visit_inlinemediaobject, which is the same here except no block_title and uses append_text, not append_line
   def visit_figure node
     append_blank_line

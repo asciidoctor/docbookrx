@@ -995,6 +995,36 @@ And sometimes it does not.
     expect(output).to include(expected)
   end
 
+  it 'should convert screenshot like figure' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         version="5.0" xml:lang="en">
+<screenshot>
+  <info>
+    <title>a1</title>
+  </info>
+
+  <mediaobject>
+    <textobject>
+      <phrase>some screenshot</phrase>
+    </textobject>
+    <imageobject>
+      <imagedata fileref="images/dummy.png"/>
+    </imageobject>
+  </mediaobject>
+</screenshot>
+</article>
+    EOS
+
+    expected = <<-EOS
+
+.a1
+image::images/dummy.png[some screenshot]
+    EOS
+    output = Docbookrx.convert input
+    expect(output).to eq(expected)
+end
+
   it 'should correctly convert varlistentry elements with nested lists' do
     input = <<-EOS
 <article xmlns='http://docbook.org/ns/docbook'
