@@ -1205,6 +1205,11 @@ class DocbookVisitor
     false
   end
 
+  def visit_email node
+      address = node.text
+      append_text %{mailto:#{address}[]}
+  end
+
   def visit_link node
     if node.attr 'linkend'
       visit_xref node
