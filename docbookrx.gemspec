@@ -10,6 +10,8 @@ Gem::Specification.new do |s|
   s.summary = 'A DocBook to AsciiDoc converter'
   s.description = 'The prescription for all your DocBook pain. Converts DocBook XML to AsciiDoc.'
   s.license = 'MIT'
+  # NOTE required ruby version is informational only; it's not enforced since it can't be overridden and can cause builds to break
+  #s.required_ruby_version = '>= 2.3.0'
 
   files = begin
     IO.popen('git ls-files -z') {|io| io.read }.split "\0"
@@ -22,7 +24,7 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = Dir['README.adoc', 'LICENSE']
   s.require_paths = ['lib']
 
-  s.add_runtime_dependency 'nokogiri', '~> 1.8.0'
-  s.add_development_dependency 'rake', '~> 10.4.0'
-  s.add_development_dependency 'rspec', '~> 3.4.0'
+  s.add_runtime_dependency 'nokogiri', '~> 1.10.0'
+  s.add_development_dependency 'rake', '~> 13.0.0'
+  s.add_development_dependency 'rspec', '~> 3.9.0'
 end
