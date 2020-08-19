@@ -2,6 +2,9 @@
 
 == TODO TASKS
 
+- handle link around inline media object
+- squeeze text of links (usually caused by wrapping in pandoc)
+
 === TRACKED TODO TASKS
 
 NOTE: All issues in this section have a matching tracker bug created in this project to contain work and contributions.
