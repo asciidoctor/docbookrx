@@ -49,17 +49,17 @@ class DocbookVisitor
 
   ADMONITION_NAMES = ['note', 'tip', 'warning', 'caution', 'important']
 
-  NORMAL_SECTION_NAMES = ['section', 'simplesect', 'sect1', 'sect2', 'sect3', 'sect4', 'sect5']
+  NORMAL_SECTION_NAMES = ['section', 'simplesect', 'sect1', 'sect2', 'sect3', 'sect4', 'sect5', 'refsection', 'refsect1', 'refsect2', 'refsect3']
 
   SPECIAL_SECTION_NAMES = ['abstract', 'appendix', 'bibliography', 'glossary', 'preface']
 
-  DOCUMENT_NAMES = ['article', 'book']
+  DOCUMENT_NAMES = ['article', 'book', 'refentry']
 
   SECTION_NAMES = DOCUMENT_NAMES + ['chapter', 'part'] + NORMAL_SECTION_NAMES + SPECIAL_SECTION_NAMES
 
-  ANONYMOUS_LITERAL_NAMES = ['abbrev', 'acronym', 'code', 'command', 'computeroutput', 'database', 'function', 'literal', 'tag', 'userinput']
+  ANONYMOUS_LITERAL_NAMES = ['abbrev', 'acronym', 'code', 'database', 'function', 'literal', 'tag']
 
-  NAMED_LITERAL_NAMES = ['application', 'classname', 'constant', 'envar', 'exceptionname', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname']
+  NAMED_LITERAL_NAMES = ['application', 'organization', 'classname', 'constant', 'envar', 'exceptionname', 'interfacename', 'methodname', 'option', 'parameter', 'property', 'replaceable', 'type', 'varname', 'prompt', 'command', 'userinput', 'computeroutput']
 
   LITERAL_NAMES = ANONYMOUS_LITERAL_NAMES + NAMED_LITERAL_NAMES
 
@@ -90,11 +90,11 @@ class DocbookVisitor
     @normalize_ids = opts.fetch :normalize_ids, true
     @compat_mode = opts[:compat_mode]
     @attributes = opts[:attributes] || {}
-    @sentence_per_line = opts.fetch :sentence_per_line, true
+    @sentence_per_line = opts.fetch :sentence_per_line, false
     @preserve_line_wrap = if @sentence_per_line
       false
     else
-      opts.fetch :preserve_line_wrap, true
+      opts.fetch :preserve_line_wrap, false
     end
     @delimit_source = opts.fetch :delimit_source, true
     @list_depth = 0
@@ -139,7 +139,7 @@ class DocbookVisitor
     before_traverse node, visit_method_name if (respond_to? :before_traverse)
     result = if respond_to? visit_method_name
       send visit_method_name, node
-    elsif respond_to? :default_visit
+        elsif respond_to? :default_visit
       send :default_visit, node
     end
 
@@ -246,7 +246,7 @@ class DocbookVisitor
   def format_append_text node, prefix="", suffix=""
     text = format_text node
     line = text.shift(1)[0]
-    append_text prefix + line + suffix
+    append_text prefix + line.strip + suffix
     lines.concat(text) unless text.empty?
     text
   end
@@ -385,6 +385,10 @@ class DocbookVisitor
   end
 
   def visit_article node
+    process_doc node
+  end
+
+  def visit_refentry node
     process_doc node
   end
 
@@ -954,6 +958,13 @@ class DocbookVisitor
     false
   end
 
+  def visits_synopsis node
+    append_blank_line
+    append_line '----'
+    proceed node
+    append_line '----'
+  end
+  
   def visit_programlisting node
     language = node.attr('language') || node.attr('role') || @attributes['source-language']
     language = %(,#{language.downcase}) if language
@@ -994,18 +1005,18 @@ class DocbookVisitor
     if elements.size > 0 && elements.first.name == 'title'
       elements.shift
     end
-    if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
-      append_line '[example]'
-      # must reset adjoin_next in case block title is placed
-      @adjoin_next = false
-      format_append_line child
-    else
+    #if elements.size == 1 && (PARA_TAG_NAMES.include? (child = elements.first).name)
+    #  append_line '[example]'
+    #  # must reset adjoin_next in case block title is placed
+    #  @adjoin_next = false
+    #  format_append_line child
+    #else
       append_line '===='
       @adjoin_next = true
       proceed node
       @adjoin_next = false
       append_line '===='
-    end
+    #end
     false
   end
 
@@ -1418,51 +1429,28 @@ class DocbookVisitor
   end
 
   def process_literal node
-    name = node.name
-    unless ANONYMOUS_LITERAL_NAMES.include? name
-      shortname = case name
-      when 'envar'
-        'var'
-      when 'application'
-        'app'
-      else
-        name.sub 'name', ''
-      end
-      append_text %([#{shortname}])
+    case node.name
+    when 'envar'
+      format_append_text node, '[var]*', '* '
+    when 'organization'
+      format_append_text node, '[org]_', '_ '
+    when 'application'
+      format_append_text node, '[app]`', '` '
+    when 'prompt'
+      format_append_text node, '[prompt]#', '# '
+    when 'option'
+      format_append_text node, '*[opt]#', '#* '
+    when 'command'
+      format_append_text node, '*[cmd]#', '#* '
+    when 'computeroutput'
+      format_append_text node, '[output]`', '` '
+    when 'userinput'
+      format_append_text node, '[ui]`', '` '
+    when 'replaceable'
+      format_append_text node, '[rep]_', '_ '
+    else
+      format_append_text node, '`', '` '
     end
-  
-    times = (adjacent_character node) ? 2 : 1;
-    literal_char = ('`' * times)
-    other_format_start = other_format_end = ''
-
-    if @nested_formatting.length > 1 
-      emphasis = false
-      bold = false
-      for i in 0..@nested_formatting.length-2
-        case @nested_formatting[i]
-        when '_'
-          emphasis = true
-        when '*'
-          bold = true
-        end
-        if emphasis && bold
-          break
-        end
-      end
-  
-      if emphasis && bold
-        other_format_start = "**__"
-        other_format_end = "__**"
-      elsif emphasis
-        other_format_start = other_format_end = "__"
-      elsif bold
-        other_format_start = other_format_end = "**"
-      end
-    end
-
-
-    format_append_text node, literal_char + other_format_start, other_format_end + literal_char
-
     false 
   end
 
@@ -1641,6 +1629,101 @@ class DocbookVisitor
     end
   end
 
+  def visit_refmeta node
+    entry = (text_at_css node, 'refentrytitle').strip
+    manvolnum = text_at_css node, 'manvolnum'
+    manual = text_at_css node, 'refmiscinfo.manual'
+    source = text_at_css node, 'refmiscinfo.source'
+    append_line %(= #{entry}(#{manvolnum}))
+    append_line 'BRL-CAD Team'
+    append_line ':doctype: manpage'
+    append_line %':man manual: #{manual}'
+    append_line %':man source: #{source}'
+    append_line ':page-layout: base'
+    append_blank_line
+    false
+  end
+
+  def visit_refnamediv node
+    name = text_at_css node, 'refname'
+    purpose = text_at_css node, 'refpurpose'
+    append_line '== NAME'
+    append_blank_line
+    append_line %'#{name} - #{purpose}'
+    append_blank_line
+    false
+  end
+  
+  def visit_refsynopsisdiv node
+    append_line '== SYNOPSIS'
+    append_blank_line
+    true
+  end
+
+  def visit_cmdsynopsis node
+    append_blank_line
+    node.elements[0...-1].each do |child|
+      visit child
+      append_text node.attr('sepchar')
+    end
+    visit node.elements.last
+    false
+  end
+
+  def visit_arg node
+    choice = node.attr('choice')
+    rep = node.attr('rep')
+    if choice == 'req'
+      format_append_text node, '{', '}'
+    elsif choice == 'plain'
+      format_append_text node
+    else
+      format_append_text node, '[', ']'
+    end
+    append_text '...' if rep == 'repeat'
+  end
+  
+  def visit_group node
+    choice = node.attr('choice')
+    rep = node.attr('rep')
+    
+    if choice == 'req'
+      append_text '{'
+    elsif choice == 'opt'
+      append_text '['
+    end
+
+    node.elements[0...-1].each do |child|
+      visit child
+      append_text ' | '
+    end
+    visit node.elements.last
+
+    if choice == 'req'
+      append_text '}'
+    elsif choice == 'opt'
+      append_text ']'
+    end
+
+    append_text '...' if rep == 'repeat'
+  end
+
+  def visit_optional node
+    format_append_text node, '[', ']'
+  end
+
+  def visit_sbr node
+    append_text ' +'
+    append_line '    '
+  end
+
+  def visit_citerefentry node
+    entry = text_at_css node, 'refentrytitle'
+    num = text_at_css node, 'manvolnum'
+    append_text %(xref:man:#{num}/#{entry}.adoc[*#{entry}*](#{num}))
+    false
+  end
+  
   def lazy_quote text, seek = ','
     if text && (text.include? seek)
       %("#{text}")
