@@ -1431,25 +1431,37 @@ class DocbookVisitor
   def process_literal node
     case node.name
     when 'envar'
-      format_append_text node, '[var]*', '* '
+      format_append_text node, '[var]`', '`'
     when 'organization'
-      format_append_text node, '[org]_', '_ '
+      format_append_text node, '[org]_', '_'
     when 'application'
-      format_append_text node, '[app]`', '` '
+      format_append_text node, '[app]`', '`'
     when 'prompt'
-      format_append_text node, '[prompt]#', '# '
+      format_append_text node, '[prompt]#', '#'
     when 'option'
-      format_append_text node, '*[opt]#', '#* '
+      if node.parent.name == 'term'
+        format_append_text node, '*', '*'
+      else
+        format_append_text node, '[opt]*', '*'
+      end
     when 'command'
-      format_append_text node, '*[cmd]#', '#* '
+      if node.parent.name == 'cmdsynopsis'
+        format_append_text node, '*', '*'
+      else
+        format_append_text node, '[cmd]*', '*'
+      end
     when 'computeroutput'
-      format_append_text node, '[output]`', '` '
+      format_append_text node, '[output]`', '`'
     when 'userinput'
-      format_append_text node, '[ui]`', '` '
+      format_append_text node, '[ui]`', '`'
     when 'replaceable'
-      format_append_text node, '[rep]_', '_ '
+      if node.parent.name == 'arg' or node.parent.name == 'term'
+        format_append_text node, '_', '_'
+      else
+        format_append_text node, '[rep]_', '_'
+      end
     else
-      format_append_text node, '`', '` '
+      format_append_text node, '`', '`'
     end
     false 
   end
@@ -1720,7 +1732,7 @@ class DocbookVisitor
   def visit_citerefentry node
     entry = text_at_css node, 'refentrytitle'
     num = text_at_css node, 'manvolnum'
-    append_text %(xref:man:#{num}/#{entry}.adoc[*#{entry}*](#{num}))
+    append_text %(xref:man:#{num}/#{entry}.adoc[*#{entry}*(#{num})])
     false
   end
   
