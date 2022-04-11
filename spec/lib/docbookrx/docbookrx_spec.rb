@@ -76,6 +76,18 @@ EOS
     expect(output).to include(expected)
   end
 
+  it 'should handle equal signs in link element' do
+    input = <<-EOS
+<para xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink">Read about <link xlink:href="http://en.wikipedia.org/wiki/Object-relational_mapping">ORM = Object RM</link> on Wikipedia.</para>
+    EOS
+
+    expected = 'Read about http://en.wikipedia.org/wiki/Object-relational_mapping["ORM = Object RM"] on Wikipedia.'
+
+    output = Docbookrx.convert input
+
+    expect(output).to include(expected)
+  end
+
   it 'should convert uri element to uri macro' do
     input = <<-EOS
 <article xmlns='http://docbook.org/ns/docbook'>
