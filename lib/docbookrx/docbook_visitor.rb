@@ -394,6 +394,10 @@ class DocbookVisitor
   alias :visit_bookinfo :visit_info
   alias :visit_articleinfo :visit_info
 
+  def visit_part node
+    visit_chapter node
+  end
+
   def visit_chapter node
     # treat document with <chapter> root element as books
     if node == node.document.root
