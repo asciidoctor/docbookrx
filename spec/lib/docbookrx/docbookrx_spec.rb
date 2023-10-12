@@ -714,6 +714,76 @@ break!
     expect(output).to include(expected)
   end
 
+  it 'should convert itemizedlist nested inside procedure, and procedure nested inside itemizedlist correctly' do
+    input = <<-EOS
+<article xmlns='http://docbook.org/ns/docbook'
+         xmlns:xl="http://www.w3.org/1999/xlink"
+         version="5.0" xml:lang="en">
+  <itemizedlist>
+    <listitem>
+      <para>simple</para>
+    </listitem>
+    <listitem>
+      <para>procedure inside listitem</para>
+      <procedure>
+        <step>
+          <para>first step</para>
+        </step>
+        <step>
+          <para>second step</para>
+        </step>
+      </procedure>
+    </listitem>
+  </itemizedlist>
+  <para>break!</para>
+  <procedure>
+    <step>
+      <para>first step</para>
+    </step>
+    <step>
+      <para>second step</para>
+    </step>
+    <step>
+      <para>third step is a nested itemizedlist</para>
+      <itemizedlist>
+        <listitem>
+          <para>foo</para>
+        </listitem>
+        <listitem>
+          <para>bar</para>
+        </listitem>
+      </itemizedlist>
+    </step>
+    <step>
+      <para>fourth step</para>
+    </step>
+  </procedure>
+</article>
+    EOS
+
+    expected = <<-EOS
+
+* simple
+* procedure inside listitem
+
+.. first step
+.. second step
+
+break!
+
+
+. first step
+. second step
+. third step is a nested itemizedlist
+** foo
+** bar
+. fourth step
+    EOS
+    output = Docbookrx.convert input
+
+    expect(output).to eql(expected)
+  end
+
   it 'should add all table lines and escape | characters in table text' do
     input = <<-EOS
 <article xmlns='http://docbook.org/ns/docbook'
