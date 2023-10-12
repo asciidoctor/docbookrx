@@ -1244,6 +1244,7 @@ class DocbookVisitor
       if (ref = @attributes.key(url))
         url = %({#{ref}})
       end
+      label = %("#{label.gsub '"', '\\"'}") if label.include? '='
       append_text %(#{prefix}#{url}[#{label}])
     end
     false
