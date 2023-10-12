@@ -24,7 +24,7 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = Dir['README.adoc', 'LICENSE']
   s.require_paths = ['lib']
 
-  s.add_runtime_dependency 'nokogiri', '~> 1.10.0'
+  s.add_runtime_dependency 'nokogiri', '~> 1.15.0'
   s.add_development_dependency 'rake', '~> 13.0.0'
   s.add_development_dependency 'rspec', '~> 3.9.0'
 end

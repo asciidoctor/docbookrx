@@ -61,11 +61,11 @@ Follow the {uri-rvm-install}[installation instructions] on the RVM site to setup
 Once you have RVM setup, switch to the version of Ruby you installed:
 
 [subs=attributes+]
- $ rvm use 2.3.0
+ $ rvm use 2.7
 
 If you want RVM to set the version of Ruby automatically whenever you switch to the project, write the version of Ruby to a file at the root of the project named [path]_.ruby-version_:
 
- $ echo 2.3.0 > .ruby-version
+ $ echo 2.7 > .ruby-version
 
 We like RVM because it keeps the dependencies required by various projects isolated from each other and from your system.
 
