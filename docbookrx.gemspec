@@ -13,10 +13,10 @@ Gem::Specification.new do |s|
   # NOTE required ruby version is informational only; it's not enforced since it can't be overridden and can cause builds to break
   #s.required_ruby_version = '>= 2.3.0'
 
-  files = begin
-    IO.popen('git ls-files -z') {|io| io.read }.split "\0"
+  begin
+    (files = `git ls-files -z`.split ?\0).empty? && (files = Dir['**/*'])
   rescue
-    Dir['**/*']
+    files = Dir['**/*']
   end
   s.files = files.grep(/^(?:(?:bin|lib|tasks|spec)\/.+|Rakefile|LICENSE|(?:README|WORKLOG)\.adoc)$/)
   s.executables = ['docbookrx']
