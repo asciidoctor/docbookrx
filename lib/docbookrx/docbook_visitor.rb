@@ -1497,6 +1497,9 @@ class DocbookVisitor
   # FIXME share logic w/ visit_inlinemediaobject, which is the same here except no block_title and uses append_text, not append_line
   def visit_figure node
     append_blank_line
+    if (id = (resolve_id node, normalize: @normalize_ids))
+      append_line %([[#{id}]])
+    end
     append_block_title node
     if (image_node = node.at_css('imageobject imagedata'))
       src = image_node.attr('fileref')
