@@ -474,9 +474,11 @@ Working Draft, 26 March 2003. OASIS. http://relaxng.org/compact-tutorial-2003032
 | Dam
 |===
     EOS
-    output = Docbookrx.convert input
-
-    expect(output).to include(expected)
+    capture_stdio do |_, stderr|
+      output = Docbookrx.convert input
+      expect(output).to include(expected)
+      expect(stderr.string).to include('5 columns specified in table \'Control parameters\', but only 4 headers')
+    end
   end
 
   it 'should convert nested program listings in listitems correctly' do
