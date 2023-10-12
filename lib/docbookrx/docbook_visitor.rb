@@ -1560,7 +1560,7 @@ class DocbookVisitor
 
   # FIXME blank lines showing up between adjacent index terms
   def visit_indexterm node
-    previous_skipped = false
+    #previous_skipped = false
     if @skip.has_key? :indexterm
       skip_count = @skip[:indexterm]
       if skip_count > 0
@@ -1568,7 +1568,7 @@ class DocbookVisitor
         return false
       else
         @skip.delete :indexterm
-        previous_skipped = true
+        #previous_skipped = true
       end
     end
 
